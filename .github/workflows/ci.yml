@@ -137,10 +137,12 @@ jobs:
       - name: Install the C++ runtime node links against
         run: apk add --no-cache libstdc++ libgcc
 
+      # pnpm, not npm: npm's launcher is a bash script, so it exits 127 on an
+      # image without bash — including when mise runs `npm -v` to verify node.
       - name: Write the fixture
         run: |
           set -eu
-          printf '[tools]\nnode = "lts"\n' > mise.toml
+          printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
           printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
 
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
@@ -148,7 +150,7 @@ jobs:
       - name: Generate the lockfile
         run: |
           set -eu
-          npm install --package-lock-only
+          pnpm install --lockfile-only
 
       - name: Run the action under test
         uses: ./.action/setup
