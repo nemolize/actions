@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  Lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker://rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057ce13af8ca21f00c37f7f # v1.7.7
+        with:
+          args: -color
+      - run: shellcheck setup/pm.sh
+
+  Smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        pm: [pnpm, npm, bun, yarn]
+
+    steps:
+      # The action reads the lockfile from the working directory and `uses:`
+      # steps cannot be given a `working-directory`, so the fixture has to BE
+      # the workspace root. The action itself is checked out beside it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .action
+
+      - name: Write the ${{ matrix.pm }} fixture
+        env:
+          PM: ${{ matrix.pm }}
+        run: |
+          set -euo pipefail
+          case "$PM" in
+            pnpm) tool='pnpm = "latest"' ;;
+            npm) tool='' ;;
+            bun) tool='bun = "latest"' ;;
+            yarn) tool='yarn = "latest"' ;;
+          esac
+          printf '[tools]\nnode = "lts"\n%s\n' "$tool" > mise.toml
+          printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
+
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+
+      - name: Generate the ${{ matrix.pm }} lockfile
+        env:
+          PM: ${{ matrix.pm }}
+        run: |
+          set -euo pipefail
+          case "$PM" in
+            pnpm) pnpm install --lockfile-only ;;
+            npm) npm install --package-lock-only ;;
+            # bun has no lockfile-only mode; a full install is the cheapest way
+            # to get a real bun.lock, and the action re-runs it from cache after.
+            bun) bun install ;;
+            # Without this the runner's bundled Yarn Classic would be used, and
+            # the action's Berry guard would (correctly) reject the fixture.
+            yarn) yarn set version berry && yarn install ;;
+          esac
+
+      - name: Run the action under test
+        uses: ./.action/setup
+
+      - name: Assert the install actually ran
+        env:
+          PM: ${{ matrix.pm }}
+        run: |
+          set -euo pipefail
+          case "$PM" in
+            yarn) test -d .yarn/cache || test -d node_modules ;;
+            *) test -d node_modules ;;
+          esac
+          node -e "require.resolve('is-odd')" 2>/dev/null ||
+            test -d .yarn/cache ||
+            { echo "::error::is-odd is not resolvable after install"; exit 1; }

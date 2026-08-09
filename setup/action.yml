@@ -12,20 +12,30 @@ runs:
         set -euo pipefail
         if [ -f pnpm-lock.yaml ]; then
           name=pnpm
-          store=$(pnpm store path)
         elif [ -f package-lock.json ]; then
           name=npm
-          store=$(npm config get cache)
         elif [ -f bun.lock ] || [ -f bun.lockb ]; then
           name=bun
-          store=$(bun pm cache)
         elif [ -f yarn.lock ]; then
           name=yarn
-          store=$(yarn config get cacheFolder)
+          # yarn.lock is also Yarn Classic's lockfile, and Classic has neither
+          # `--immutable` nor a `cacheFolder` setting — it answers `undefined`.
+          major=$(yarn --version | cut -d. -f1)
+          if [ "$major" -lt 2 ]; then
+            echo "::error::yarn $major detected; this action supports Yarn Berry (>= 2) only"
+            exit 1
+          fi
         else
           echo "::error::no lockfile found (looked for pnpm-lock.yaml, package-lock.json, bun.lock, bun.lockb, yarn.lock)"
           exit 1
         fi
+
+        store=$("$GITHUB_ACTION_PATH/pm.sh" store "$name")
+        if [ -z "$store" ] || [ "$store" = "undefined" ]; then
+          echo "::error::$name reported no cache directory (got '$store')"
+          exit 1
+        fi
+
         {
           echo "name=$name"
           echo "store=$store"
@@ -44,11 +54,4 @@ runs:
       env:
         PM: ${{ steps.pm.outputs.name }}
       run: |
-        set -euo pipefail
-        case "$PM" in
-          pnpm) pnpm install --frozen-lockfile ;;
-          npm) npm ci ;;
-          bun) bun install --frozen-lockfile ;;
-          yarn) yarn install --immutable ;;
-          *) echo "::error::unknown package manager: $PM"; exit 1 ;;
-        esac
+        "$GITHUB_ACTION_PATH/pm.sh" install "$PM"

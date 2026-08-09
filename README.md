@@ -31,17 +31,26 @@ No inputs. The package manager is detected from the lockfile, in this order:
 | `pnpm-lock.yaml` | pnpm | `pnpm install --frozen-lockfile` |
 | `package-lock.json` | npm | `npm ci` |
 | `bun.lock` / `bun.lockb` | bun | `bun install --frozen-lockfile` |
-| `yarn.lock` | Yarn Berry | `yarn install --immutable` |
+| `yarn.lock` | Yarn Berry (>= 2) | `yarn install --immutable` |
+
+Yarn Classic shares the `yarn.lock` filename but has neither `--immutable` nor a
+`cacheFolder` setting, so the action rejects it rather than taking a path that
+would half-work.
 
 No lockfile is a hard error — a silent skip would leave dependencies missing and
-fail a later step with an unrelated-looking message.
+fail a later step with an unrelated-looking message. The same applies when the
+package manager reports no cache directory.
 
 The package manager's store is cached. The store path is part of the cache key
 because container jobs resolve a different `$HOME` than host jobs, and one's
 cache is useless in the other.
 
-Only the pnpm path is exercised today; the other three are written from each
-tool's documented interface and unverified against a real run.
+Every package manager above is exercised by this repository's own CI, which
+builds a fixture project per manager and runs the action against it.
+
+`action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what
+each one is then asked to do. Adding a package manager means one new branch in
+each, not a scattered set of parallel switches.
 
 ### Requirements
 
