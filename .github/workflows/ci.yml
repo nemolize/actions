@@ -103,3 +103,48 @@ jobs:
             yarn) yarn node -e "$script" ;;
             *) node -e "$script" ;;
           esac
+
+  # The action claims to run without bash. Alpine ships none, so this is the
+  # only job that would notice a bashism creeping back into action.yml.
+  alpine:
+    name: Alpine
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container: alpine:3.22
+
+    defaults:
+      run:
+        shell: sh
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: .action
+
+      - name: Assert the image really has no bash
+        run: |
+          set -eu
+          ! command -v bash
+
+      - name: Write the fixture
+        run: |
+          set -eu
+          printf '[tools]\nnode = "lts"\n' > mise.toml
+          printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
+
+      # mise resolves the musl build from this, and node-gyp-less packages then
+      # install as they would on glibc.
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+
+      - name: Generate the lockfile
+        run: |
+          set -eu
+          npm install --package-lock-only
+
+      - name: Run the action under test
+        uses: ./.action/setup
+
+      - name: Assert the dependency resolves after install
+        run: |
+          set -eu
+          node -e "require.resolve('is-odd')"
