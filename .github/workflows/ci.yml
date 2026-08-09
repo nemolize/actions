@@ -104,19 +104,13 @@ jobs:
             *) node -e "$script" ;;
           esac
 
-  # The action claims to run without bash. Alpine ships none, so this is the
-  # only job that would notice a bashism creeping back into action.yml.
+  # The whole action is out of reach here: mise verifies a node install by
+  # running npm, whose launcher is a bash script. pm.sh's dispatch is what fits.
   alpine:
     name: Alpine
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     container: alpine:3.22
-
-    # mise defaults all_compile on for Alpine, so it builds node from source and
-    # dies on the absent toolchain; the flavor only applies once that is off.
-    env:
-      MISE_ALL_COMPILE: "0"
-      MISE_NODE_FLAVOR: musl
 
     defaults:
       run:
@@ -124,38 +118,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: .action
 
       - name: Assert the image really has no bash
         run: |
           set -eu
-          ! command -v bash
+          command -v bash && exit 1
+          true
 
-      # Node's musl build still links the C++ runtime dynamically, and the base
-      # image carries neither library.
-      - name: Install the C++ runtime node links against
-        run: apk add --no-cache libstdc++ libgcc
-
-      # pnpm, not npm: npm's launcher is a bash script, so it exits 127 on an
-      # image without bash — including when mise runs `npm -v` to verify node.
-      - name: Write the fixture
+      # A stub on PATH stands in for the real package manager: the branch under
+      # test is pm.sh's dispatch, not what pnpm prints.
+      - name: Dispatch without bash
         run: |
           set -eu
-          printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
-          printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
+          mkdir -p stub
+          printf '#!/bin/sh\necho /stub/store\n' > stub/pnpm
+          chmod +x stub/pnpm
+          PATH="$PWD/stub:$PATH"
+          export PATH
 
-      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
-
-      - name: Generate the lockfile
-        run: |
-          set -eu
-          pnpm install --lockfile-only
-
-      - name: Run the action under test
-        uses: ./.action/setup
-
-      - name: Assert the dependency resolves after install
-        run: |
-          set -eu
-          node -e "require.resolve('is-odd')"
+          [ "$(setup/pm.sh store pnpm)" = /stub/store ]
+          setup/pm.sh store nope && exit 1
+          setup/pm.sh bogus pnpm && exit 1
+          true
