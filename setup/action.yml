@@ -29,9 +29,10 @@ runs:
           lockfile=yarn.lock
           # yarn.lock is also Yarn Classic's lockfile, and Classic has neither
           # `--immutable` nor a `cacheFolder` setting — it answers `undefined`.
-          version=$(yarn --version)
-          if [ "${version%%.*}" -lt 2 ]; then
-            echo "::error::yarn ${version%%.*} detected; this action supports Yarn Berry (>= 2) only"
+          major=$(yarn --version)
+          major=${major%%.*}
+          if [ "$major" -lt 2 ]; then
+            echo "::error::yarn $major detected; this action supports Yarn Berry (>= 2) only"
             exit 1
           fi
         else

@@ -33,6 +33,14 @@ jobs:
       - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
+      # The Integration legs run on an image that has bash, so losing this
+      # property would otherwise pass every job.
+      - name: Assert the action does not ask for bash
+        run: |
+          set -euo pipefail
+          grep -nE 'shell: *bash' setup/action.yml && exit 1
+          true
+
   integration-test:
     name: Integration Test
     runs-on: ubuntu-latest
@@ -125,8 +133,7 @@ jobs:
           command -v bash && exit 1
           true
 
-      # A stub on PATH stands in for the real package manager: the branch under
-      # test is pm.sh's dispatch, not what pnpm prints.
+      # A stub on PATH stands in for the real package manager.
       - name: Dispatch without bash
         run: |
           set -eu
