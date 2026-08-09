@@ -32,7 +32,8 @@ jobs:
       - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
-  Smoke:
+  integration-test:
+    name: Integration Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
