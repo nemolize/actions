@@ -56,3 +56,10 @@ each, not a scattered set of parallel switches.
 
 - A `mise.toml` declaring the runtime and package manager.
 - `actions/checkout` before this action.
+
+The action's own steps run under `sh`, so it does not need `bash` in the image.
+That is not enough to make it work on a bare Alpine container, though: mise
+verifies a node install by running `npm`, whose launcher is a bash script. An
+Alpine image also needs `libstdc++` and `libgcc` for node itself, plus
+`MISE_ALL_COMPILE=0` — mise turns compilation on by default there, which
+declines the prebuilt musl binaries.
