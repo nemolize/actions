@@ -112,10 +112,10 @@ jobs:
     timeout-minutes: 15
     container: alpine:3.22
 
-    # Without this mise builds node from source on musl, which wants a toolchain
-    # the base image doesn't carry. The prebuilt musl flavor is the route mise
-    # intends here, and what an Alpine consumer of this action should set too.
+    # mise defaults all_compile on for Alpine, so it builds node from source and
+    # dies on the absent toolchain; the flavor only applies once that is off.
     env:
+      MISE_ALL_COMPILE: "0"
       MISE_NODE_FLAVOR: musl
 
     defaults:
