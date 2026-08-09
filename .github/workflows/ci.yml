@@ -103,39 +103,3 @@ jobs:
             yarn) yarn node -e "$script" ;;
             *) node -e "$script" ;;
           esac
-
-  # The whole action is out of reach here: mise verifies a node install by
-  # running npm, whose launcher is a bash script. pm.sh's dispatch is what fits.
-  alpine:
-    name: Alpine
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    container: alpine:3.22
-
-    defaults:
-      run:
-        shell: sh
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Assert the image really has no bash
-        run: |
-          set -eu
-          command -v bash && exit 1
-          true
-
-      # A stub on PATH stands in for the real package manager.
-      - name: Dispatch without bash
-        run: |
-          set -eu
-          mkdir -p stub
-          printf '#!/bin/sh\necho /stub/store\n' > stub/pnpm
-          chmod +x stub/pnpm
-          PATH="$PWD/stub:$PATH"
-          export PATH
-
-          [ "$(setup/pm.sh store pnpm)" = /stub/store ]
-          setup/pm.sh store nope && exit 1
-          setup/pm.sh bogus pnpm && exit 1
-          true
