@@ -18,9 +18,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: docker://rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057ce13af8ca21f00c37f7f # v1.7.7
-        with:
-          args: -color
+
+      # Pinned rather than taken from the runner image, so a lint failure here
+      # reproduces against the same version locally.
+      - name: Install actionlint
+        env:
+          VERSION: 1.7.12
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/actionlint_${VERSION}_linux_amd64.tar.gz" |
+            tar -xz -C /usr/local/bin actionlint
+
+      - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
   Smoke:
@@ -67,9 +76,13 @@ jobs:
             # bun has no lockfile-only mode; a full install is the cheapest way
             # to get a real bun.lock, and the action re-runs it from cache after.
             bun) bun install ;;
-            # Without this the runner's bundled Yarn Classic would be used, and
-            # the action's Berry guard would (correctly) reject the fixture.
-            yarn) yarn set version berry && yarn install ;;
+            yarn)
+              # The runner ships Classic, which the action's Berry guard rejects.
+              yarn set version berry
+              # Berry refuses to create a lockfile under CI=true; creating one
+              # is this step's whole job.
+              YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
+              ;;
           esac
 
       - name: Run the action under test
