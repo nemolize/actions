@@ -13,7 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  Lint:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -32,7 +33,8 @@ jobs:
       - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
-  Smoke:
+  integration-test:
+    name: Integration Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
