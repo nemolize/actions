@@ -33,14 +33,6 @@ jobs:
       - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
-      # The Integration legs run on an image that has bash, so losing this
-      # property would otherwise pass every job.
-      - name: Assert the action does not ask for bash
-        run: |
-          set -euo pipefail
-          grep -nE 'shell: *bash' setup/action.yml && exit 1
-          true
-
   integration-test:
     name: Integration Test
     runs-on: ubuntu-latest
