@@ -88,15 +88,16 @@ jobs:
       - name: Run the action under test
         uses: ./.action/setup
 
-      - name: Assert the install actually ran
+      # Resolving the dependency proves the install landed; a node_modules
+      # directory test would not, since Yarn PnP never writes one.
+      - name: Assert the dependency resolves after install
         env:
           PM: ${{ matrix.pm }}
         run: |
           set -euo pipefail
+          script="require.resolve('is-odd')"
           case "$PM" in
-            yarn) test -d .yarn/cache || test -d node_modules ;;
-            *) test -d node_modules ;;
+            # Yarn PnP resolution only exists inside `yarn node`.
+            yarn) yarn node -e "$script" ;;
+            *) node -e "$script" ;;
           esac
-          node -e "require.resolve('is-odd')" 2>/dev/null ||
-            test -d .yarn/cache ||
-            { echo "::error::is-odd is not resolvable after install"; exit 1; }
