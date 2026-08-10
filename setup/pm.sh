@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 # Single source of truth for what each package manager is asked to do.
 # Detection lives in action.yml; everything downstream of the name lives here,
 # so adding a package manager touches one switch instead of two steps split by
 # the cache step between them.
-set -euo pipefail
+set -eu
 
 op=${1:?usage: pm.sh <store|install> <pnpm|npm|bun|yarn>}
 pm=${2:?usage: pm.sh <store|install> <pnpm|npm|bun|yarn>}

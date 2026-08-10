@@ -41,9 +41,11 @@ No lockfile is a hard error — a silent skip would leave dependencies missing a
 fail a later step with an unrelated-looking message. The same applies when the
 package manager reports no cache directory.
 
-The package manager's store is cached. The store path is part of the cache key
-because container jobs resolve a different `$HOME` than host jobs, and one's
-cache is useless in the other.
+The package manager's store is cached, keyed on the lockfile that detection
+selected — not on every lockfile name, so an unrelated `yarn.lock` sitting in a
+pnpm repository no longer invalidates the entry. The store path is deliberately
+absent from the key: `actions/cache` hashes `path` into its own cache version, so
+a container job and a host job never share an entry even under an identical key.
 
 Every package manager above is exercised by this repository's own CI, which
 builds a fixture project per manager and runs the action against it.
@@ -56,3 +58,13 @@ each, not a scattered set of parallel switches.
 
 - A `mise.toml` declaring the runtime and package manager.
 - `actions/checkout` before this action.
+
+The action's own steps run under `sh`, so it does not need `bash` in the image.
+That alone does not make a bare Alpine container work, because mise and node
+bring requirements of their own. Such an image needs all of:
+
+- `bash` — mise verifies a node install by running `npm`, whose launcher is a
+  bash script.
+- `libstdc++` and `libgcc` — node's musl build links both dynamically.
+- `MISE_ALL_COMPILE=0` — mise turns compilation on by default on Alpine, which
+  declines the prebuilt musl binaries and then wants a full build toolchain.

@@ -7,20 +7,30 @@ runs:
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
 
     - id: pm
-      shell: bash
+      # `sh`, not `bash`: a composite action's shell name is resolved literally,
+      # with no fallback, so `bash` would fail outright on an image that lacks it.
+      shell: sh
       run: |
-        set -euo pipefail
+        set -eu
         if [ -f pnpm-lock.yaml ]; then
           name=pnpm
+          lockfile=pnpm-lock.yaml
         elif [ -f package-lock.json ]; then
           name=npm
-        elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+          lockfile=package-lock.json
+        elif [ -f bun.lock ]; then
           name=bun
+          lockfile=bun.lock
+        elif [ -f bun.lockb ]; then
+          name=bun
+          lockfile=bun.lockb
         elif [ -f yarn.lock ]; then
           name=yarn
+          lockfile=yarn.lock
           # yarn.lock is also Yarn Classic's lockfile, and Classic has neither
           # `--immutable` nor a `cacheFolder` setting — it answers `undefined`.
-          major=$(yarn --version | cut -d. -f1)
+          major=$(yarn --version)
+          major=${major%%.*}
           if [ "$major" -lt 2 ]; then
             echo "::error::yarn $major detected; this action supports Yarn Berry (>= 2) only"
             exit 1
@@ -38,6 +48,7 @@ runs:
 
         {
           echo "name=$name"
+          echo "lockfile=$lockfile"
           echo "store=$store"
         } >> "$GITHUB_OUTPUT"
         echo "detected $name, store at $store"
@@ -45,12 +56,13 @@ runs:
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.pm.outputs.store }}
-        # The store path is in the key because container jobs resolve a different
-        # $HOME than host jobs, and one's cache is useless in the other.
-        key: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ steps.pm.outputs.store }}-${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock', 'mise.toml') }}
-        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ steps.pm.outputs.store }}-
+        # The store path is absent from the key on purpose: actions/cache already
+        # hashes `path` into its own cache version, so a container job and a host
+        # job never share an entry even under an identical key.
+        key: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ hashFiles(steps.pm.outputs.lockfile, 'mise.toml') }}
+        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-
 
-    - shell: bash
+    - shell: sh
       env:
         PM: ${{ steps.pm.outputs.name }}
       run: |
