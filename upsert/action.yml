@@ -1,0 +1,47 @@
+name: Upsert a marker-delimited block
+description: Write a markdown block into a pull request or issue body, replacing it in place on every later run.
+author: Masaru Nemoto
+
+branding:
+  icon: edit-3
+  color: green
+
+inputs:
+  marker:
+    description: Names the block this action owns, as `<!-- <marker>-start -->`.
+    required: true
+  body:
+    description: Markdown to put inside the block. Empty content is handled by `on-empty`.
+  target:
+    description: Where the block lives. Only `body` is supported today; `comment` is reserved.
+    default: body
+  mode:
+    description: "`upsert` to write the block, `remove` to delete it."
+    default: upsert
+  position:
+    description: Where a first-time block goes — `append` or `prepend`. An existing block is always replaced in place.
+    default: append
+  on-empty:
+    description: What to do when `body` is empty — `remove` the block, or `skip` and leave the description untouched.
+    default: remove
+  number:
+    description: Pull request or issue number. Defaults to the one carried by the event.
+  repository:
+    description: Repository holding it, as `owner/name`.
+    default: ${{ github.repository }}
+  skip-forks:
+    description: Skip, rather than fail, when the pull request comes from a fork whose token cannot write.
+    default: "true"
+  github-token:
+    description: Token used to read and edit the body.
+    default: ${{ github.token }}
+
+outputs:
+  changed:
+    description: "`true` when the body was written, `false` when it was already current."
+  number:
+    description: Pull request or issue the block was written to.
+
+runs:
+  using: node24
+  main: main.mjs

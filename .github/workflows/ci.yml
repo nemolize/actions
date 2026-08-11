@@ -33,8 +33,80 @@ jobs:
       - run: actionlint -color
       - run: shellcheck setup/pm.sh
 
-  integration-test:
-    name: Integration Test
+  unit-test:
+    name: Unit Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      # Globbed rather than named, so an action added later is covered without
+      # touching this job.
+      - run: node --test ./*/test/*.test.mjs
+
+  upsert-self-test:
+    name: Upsert Self Test
+    # A fork's token cannot write, so the action correctly no-ops there and the
+    # assertions below would have nothing to assert.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: unit-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Start from a description without the block
+        uses: ./upsert
+        with:
+          marker: self-test
+          mode: remove
+
+      - id: write
+        uses: ./upsert
+        with:
+          marker: self-test
+          body: |
+            ### Self test
+
+            Written by `${{ github.sha }}`.
+
+      - id: rewrite
+        uses: ./upsert
+        with:
+          marker: self-test
+          body: |
+            ### Self test
+
+            Written by `${{ github.sha }}`.
+
+      - id: clear
+        uses: ./upsert
+        with:
+          marker: self-test
+          mode: remove
+
+      - name: Each step must report what it actually did
+        env:
+          WROTE: ${{ steps.write.outputs.changed }}
+          REWROTE: ${{ steps.rewrite.outputs.changed }}
+          CLEARED: ${{ steps.clear.outputs.changed }}
+        run: |
+          set -eu
+          fail=0
+          check() {
+            [ "$2" = "$3" ] || { echo "::error::$1 reported changed=$2, expected $3"; fail=1; }
+          }
+          check "the first write" "$WROTE" true
+          check "writing the same content again" "$REWROTE" false
+          check "removing the block" "$CLEARED" true
+          exit "$fail"
+
+  setup-integration-test:
+    name: Setup Integration Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

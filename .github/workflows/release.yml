@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  release:
+    # `published` also fires for prereleases, which must not drag the major tag
+    # every caller of every action here follows.
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  major-tag:
+    name: Move the major tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Move the major tag callers pin to
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -eu
+          major="${TAG%%.*}"
+          git tag -f "$major" "$TAG"
+          git push -f origin "$major"
