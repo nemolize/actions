@@ -161,13 +161,3 @@ them in one `concurrency` group.
 
 - `pull-requests: write` for a pull request, `issues: write` for an issue.
 - No `actions/checkout` — the action reads and writes over the API.
-
-### Migrated from `nemolize/upsert`
-
-This action previously lived in its own repository, released up to `v1.0.1`.
-Callers pinned to `nemolize/upsert@<sha>` move to `nemolize/actions/upsert@<sha>`
-with the same inputs and outputs; only the version line changes, since the tag
-now covers the whole monorepo.
-
-Delete this section once the old repository is archived — its own README carries
-the redirect from then on.
