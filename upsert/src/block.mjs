@@ -1,5 +1,5 @@
-// Marker-delimited blocks inside a markdown document. Every function here is
-// pure so the interesting behaviour can be tested without touching the API.
+// Every function here is pure, so the interesting behaviour is testable
+// without touching the API.
 
 export const markersFor = (marker) => ({
   start: `<!-- ${marker}-start -->`,
@@ -13,6 +13,12 @@ export const normalise = (text) => (text ?? "").replaceAll("\r\n", "\n");
 export const wrap = (marker, content) => {
   const { start, end } = markersFor(marker);
   const inner = normalise(content).trim();
+  // Content carrying its own marker line would close the block early, so the
+  // remainder would land outside it and be re-appended on every later run.
+  const stray = inner.split("\n").find((line) => line === start || line === end);
+  if (stray) {
+    throw new Error(`body contains the line ${stray}, which would break the ${marker} block`);
+  }
   return inner ? `${start}\n${inner}\n${end}` : `${start}\n${end}`;
 };
 
@@ -73,7 +79,6 @@ export const remove = (body, marker) => {
   return seam(lines.slice(0, from), lines.slice(to + 1));
 };
 
-// The block as it currently stands, markers included, or null when absent.
 export const readBlock = (body, marker) => {
   const found = locate(body, marker);
   if (!found) return null;

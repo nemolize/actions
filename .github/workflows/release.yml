@@ -2,7 +2,9 @@ name: Release
 
 on:
   release:
-    types: [published]
+    # `published` also fires for prereleases, which must not drag the major tag
+    # every caller of every action here follows.
+    types: [released]
 
 permissions:
   contents: read

@@ -80,7 +80,7 @@ permissions:
   pull-requests: write
 
 steps:
-  - uses: nemolize/actions/upsert@<sha> # v1.1.0
+  - uses: nemolize/actions/upsert@<sha> # the release that <sha> belongs to
     with:
       marker: coverage
       body: |
@@ -112,7 +112,7 @@ different markers.
 | `body` | | Markdown to put inside the block |
 | `target` | `body` | Where the block lives. Only `body` is supported today; `comment` is reserved |
 | `mode` | `upsert` | `upsert` to write the block, `remove` to delete it |
-| `position` | `append` | Where a first-time block goes. An existing block is always replaced where it sits |
+| `position` | `append` | Where a first-time block goes — `append` or `prepend`. An existing block is always replaced where it sits |
 | `on-empty` | `remove` | What an empty `body` means — `remove` the block, or `skip` and change nothing |
 | `number` | from the event | Pull request or issue number |
 | `repository` | `${{ github.repository }}` | Repository holding it, as `owner/name` |
@@ -157,10 +157,6 @@ which converges as long as the racing write has already landed. It cannot close
 the window entirely — when two jobs write blocks to the same pull request, put
 them in one `concurrency` group.
 
-`upsert/src/block.mjs` holds the marker arithmetic as pure functions, so the
-behaviour above is covered by `node --test` without touching the API;
-`upsert/src/github.mjs` is the only part that talks to GitHub.
-
 ### Requirements
 
 - `pull-requests: write` for a pull request, `issues: write` for an issue.
@@ -172,3 +168,6 @@ This action previously lived in its own repository, released up to `v1.0.1`.
 Callers pinned to `nemolize/upsert@<sha>` move to `nemolize/actions/upsert@<sha>`
 with the same inputs and outputs; only the version line changes, since the tag
 now covers the whole monorepo.
+
+Delete this section once the old repository is archived — its own README carries
+the redirect from then on.

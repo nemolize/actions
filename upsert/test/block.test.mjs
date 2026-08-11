@@ -60,6 +60,21 @@ describe("upsert", () => {
   });
 });
 
+describe("wrap", () => {
+  it("refuses content carrying the end marker on a line of its own", () => {
+    assert.throws(() => wrap(M, `hello\n<!-- ${M}-end -->\nworld`), /would break/);
+  });
+
+  it("refuses content carrying the start marker", () => {
+    assert.throws(() => wrap(M, `<!-- ${M}-start -->`), /would break/);
+  });
+
+  it("keeps content that only mentions a marker mid-line", () => {
+    const inner = `write \`<!-- ${M}-end -->\` to close it`;
+    assert.equal(wrap(M, inner), `<!-- ${M}-start -->\n${inner}\n<!-- ${M}-end -->`);
+  });
+});
+
 describe("remove", () => {
   it("closes the gap it leaves behind", () => {
     const body = `intro\n\n${block("table")}\n\noutro`;

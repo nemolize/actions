@@ -28,7 +28,8 @@ const run = async () => {
   if (!token) throw new Error("github-token is required");
 
   const payload = event();
-  const repository = input("repository").trim() || process.env["GITHUB_REPOSITORY"];
+  const eventRepository = process.env["GITHUB_REPOSITORY"];
+  const repository = input("repository").trim() || eventRepository;
   const requested = input("number").trim();
   const number = requested
     ? Number(requested)
@@ -42,14 +43,13 @@ const run = async () => {
 
   // A fork's token is read-only, so the write below could only fail.
   const eventPr = payload.pull_request;
-  const targetsEventPr =
-    eventPr?.number === number && repository === process.env["GITHUB_REPOSITORY"];
+  const targetsEventPr = eventPr?.number === number && repository === eventRepository;
   if (skipForks && targetsEventPr && eventPr.head?.repo?.full_name !== repository) {
     stop("pull request comes from a fork, whose token cannot write; nothing to do");
   }
 
   const collection =
-    collectionFromEvent(payload, number) ??
+    collectionFromEvent(payload, number, repository, eventRepository) ??
     (await detectCollection(token, repository, number));
 
   const content = normalise(input("body")).trim();
