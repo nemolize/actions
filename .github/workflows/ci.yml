@@ -113,9 +113,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `mise-config` spreads the config filenames mise accepts across the
-        # managers, so the cache key's patterns are exercised on a dotfile, a
-        # nested path and a profile variant rather than only on `mise.toml`.
         include:
           - pm: pnpm
             mise-config: mise.toml
@@ -197,8 +194,8 @@ jobs:
             *) node -e "$script" ;;
           esac
 
-      # Asserts mise's config filenames are hashable, not that the action still
-      # lists them: its key interpolates a step output no other workflow reaches.
+      # Repeats the patterns rather than reading the action's key, which
+      # interpolates a step output no other workflow reaches.
       - name: Assert this mise config filename is hashable
         env:
           MISE_CONFIG: ${{ matrix.mise-config }}
