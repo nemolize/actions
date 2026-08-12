@@ -59,7 +59,10 @@ runs:
         # The store path is absent from the key on purpose: actions/cache already
         # hashes `path` into its own cache version, so a container job and a host
         # job never share an entry even under an identical key.
-        key: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ hashFiles(steps.pm.outputs.lockfile, 'mise.toml') }}
+        # Every mise config filename is listed, not just `mise.toml`: naming one
+        # drops the toolchain out of the key for a repo using any other, which
+        # would restore a stale store across a mise change.
+        key: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ hashFiles(steps.pm.outputs.lockfile, 'mise.toml', '.mise.toml', 'mise/config.toml', '.mise/config.toml', '.config/mise.toml', '.config/mise/config.toml', '.config/mise/conf.d/*.toml', '.tool-versions') }}
         restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-
 
     - shell: sh

@@ -113,7 +113,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pm: [pnpm, npm, bun, yarn]
+        # `mise-config` spreads the config filenames mise accepts across the
+        # managers, so the cache key's glob is exercised on a dotfile and a
+        # nested path rather than only on `mise.toml`.
+        include:
+          - pm: pnpm
+            mise-config: mise.toml
+          - pm: npm
+            mise-config: .mise.toml
+          - pm: bun
+            mise-config: .config/mise.toml
+          - pm: yarn
+            mise-config: mise/config.toml
 
     steps:
       # The action reads the lockfile from the working directory and `uses:`
@@ -126,6 +137,7 @@ jobs:
       - name: Write the ${{ matrix.pm }} fixture
         env:
           PM: ${{ matrix.pm }}
+          MISE_CONFIG: ${{ matrix.mise-config }}
         run: |
           set -euo pipefail
           case "$PM" in
@@ -134,7 +146,8 @@ jobs:
             bun) tool='bun = "latest"' ;;
             yarn) tool='yarn = "latest"' ;;
           esac
-          printf '[tools]\nnode = "lts"\n%s\n' "$tool" > mise.toml
+          mkdir -p "$(dirname "$MISE_CONFIG")"
+          printf '[tools]\nnode = "lts"\n%s\n' "$tool" > "$MISE_CONFIG"
           printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
 
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
@@ -175,3 +188,18 @@ jobs:
             yarn) yarn node -e "$script" ;;
             *) node -e "$script" ;;
           esac
+
+      # Asserts mise's config filenames are hashable, not that the action still
+      # lists them: its key interpolates a step output no other workflow reaches.
+      - name: Assert this mise config filename is hashable
+        env:
+          MISE_CONFIG: ${{ matrix.mise-config }}
+          LOCKFILE_ONLY: ${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock') }}
+          WITH_CONFIG: ${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock', 'mise.toml', '.mise.toml', 'mise/config.toml', '.mise/config.toml', '.config/mise.toml', '.config/mise/config.toml', '.config/mise/conf.d/*.toml', '.tool-versions') }}
+        run: |
+          set -euo pipefail
+          [ -n "$WITH_CONFIG" ] || { echo "::error::hashFiles matched nothing at all"; exit 1; }
+          [ "$WITH_CONFIG" != "$LOCKFILE_ONLY" ] || {
+            echo "::error::$MISE_CONFIG is not covered by the key's patterns"
+            exit 1
+          }

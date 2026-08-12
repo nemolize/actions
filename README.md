@@ -16,8 +16,8 @@ is what actually resolves.
 
 ## `setup`
 
-Installs the toolchain declared in `mise.toml`, then installs dependencies with
-whichever package manager the repository's lockfile selects.
+Installs the toolchain declared in the repository's mise config, then installs
+dependencies with whichever package manager its lockfile selects.
 
 ```yaml
 - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,6 +47,13 @@ pnpm repository no longer invalidates the entry. The store path is deliberately
 absent from the key: `actions/cache` hashes `path` into its own cache version, so
 a container job and a host job never share an entry even under an identical key.
 
+The key also covers the mise config, under every filename mise accepts —
+`mise.toml`, `mise/config.toml`, `.config/mise.toml`, `.config/mise/conf.d/*.toml`,
+`.tool-versions`, and the dotfile form of each `mise`-prefixed path. Naming only
+`mise.toml` would drop the toolchain out of the key for a repository using any
+other form, and a mise change would then restore a store built against the old
+toolchain.
+
 Every package manager above is exercised by this repository's own CI, which
 builds a fixture project per manager and runs the action against it.
 
@@ -56,7 +63,8 @@ each, not a scattered set of parallel switches.
 
 ### Requirements
 
-- A `mise.toml` declaring the runtime and package manager.
+- A mise config declaring the runtime and package manager, under any filename
+  mise reads.
 - `actions/checkout` before this action.
 
 The action's own steps run under `sh`, so it does not need `bash` in the image.
