@@ -47,12 +47,17 @@ pnpm repository no longer invalidates the entry. The store path is deliberately
 absent from the key: `actions/cache` hashes `path` into its own cache version, so
 a container job and a host job never share an entry even under an identical key.
 
-The key also covers the mise config, under every filename mise accepts —
-`mise.toml`, `mise/config.toml`, `.config/mise.toml`, `.config/mise/conf.d/*.toml`,
-`.tool-versions`, and the dotfile form of each `mise`-prefixed path. Naming only
-`mise.toml` would drop the toolchain out of the key for a repository using any
-other form, and a mise change would then restore a store built against the old
-toolchain.
+The key also covers the mise config, under every filename mise accepts. The
+pattern list mirrors `MISE_CONFIG_FILE_PATTERNS` in `jdx/mise-action` — each
+config path, its `mise.<profile>.toml` variants, the matching `.lock` files and
+`.tool-versions` — so the toolchain is keyed on wherever this repository happens
+to declare it. The one deliberate difference is that these patterns are anchored
+at the root rather than prefixed with `**/`, which would also sweep in any mise
+config vendored inside `node_modules`.
+
+Naming only `mise.toml` would drop the toolchain out of the key for a repository
+using any other form, and a mise change would then restore a store built against
+the old toolchain.
 
 Every package manager above is exercised by this repository's own CI, which
 builds a fixture project per manager and runs the action against it.
