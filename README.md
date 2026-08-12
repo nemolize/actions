@@ -48,16 +48,22 @@ absent from the key: `actions/cache` hashes `path` into its own cache version, s
 a container job and a host job never share an entry even under an identical key.
 
 The key also covers the mise config, under every filename mise accepts. The
-pattern list mirrors `MISE_CONFIG_FILE_PATTERNS` in `jdx/mise-action` — each
+pattern list follows `MISE_CONFIG_FILE_PATTERNS` in `jdx/mise-action` — each
 config path, its `mise.<profile>.toml` variants, the matching `.lock` files and
 `.tool-versions` — so the toolchain is keyed on wherever this repository happens
-to declare it. The one deliberate difference is that these patterns are anchored
-at the root rather than prefixed with `**/`, which would also sweep in any mise
-config vendored inside `node_modules`.
+to declare it. Naming only `mise.toml` would drop the toolchain out of the key
+for a repository using any other form, and a mise change would then restore a
+store built against the old toolchain.
 
-Naming only `mise.toml` would drop the toolchain out of the key for a repository
-using any other form, and a mise change would then restore a store built against
-the old toolchain.
+Two deliberate differences from that list: the patterns are anchored at the root
+rather than prefixed with `**/`, which would also sweep in a mise config vendored
+inside `node_modules`; and `.config/mise/conf.d/*.toml` is added, which mise reads
+but upstream's list does not name.
+
+`MISE_ENV` is part of the key, and of `restore-keys`, because it selects which of
+those files mise actually reads. Without it two jobs over one checkout — one with
+`MISE_ENV` set, one without — hash an identical set of files while installing
+different toolchains, and would share a store.
 
 Every package manager above is exercised by this repository's own CI, which
 builds a fixture project per manager and runs the action against it.

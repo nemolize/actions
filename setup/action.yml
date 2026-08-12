@@ -59,10 +59,11 @@ runs:
         # The store path is absent from the key on purpose: actions/cache already
         # hashes `path` into its own cache version, so a container job and a host
         # job never share an entry even under an identical key.
-        # The mise half mirrors mise-action's MISE_CONFIG_FILE_PATTERNS without
-        # its `**/` prefix, which would also sweep configs under node_modules.
+        # Patterns mirror mise-action's, minus its `**/` prefix (which would
+        # sweep node_modules); MISE_ENV picks which of them mise actually reads.
         key: >-
-          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ hashFiles(
+          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV
+          }}-${{ hashFiles(
           steps.pm.outputs.lockfile,
           'mise.toml', 'mise.*.toml', 'mise.lock', 'mise.*.lock',
           '.mise.toml', '.mise.*.toml', '.mise.lock', '.mise.*.lock',
@@ -76,7 +77,9 @@ runs:
           '.config/mise/config.lock', '.config/mise/config.*.lock',
           '.config/mise/conf.d/*.toml',
           '.tool-versions') }}
-        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-
+        # Carries MISE_ENV too: a prefix stopping short of it would let a job
+        # fall back onto a store another profile built.
+        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV }}-
 
     - shell: sh
       env:
