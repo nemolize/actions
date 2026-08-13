@@ -113,6 +113,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Which filenames the cache key covers is settled in setup/test, against
+        # the patterns read out of action.yml. These rows carry the part that
+        # needs a runner: that mise resolves the config and the install lands.
         include:
           - pm: pnpm
             mise-config: mise.toml
@@ -193,32 +196,3 @@ jobs:
             yarn) yarn node -e "$script" ;;
             *) node -e "$script" ;;
           esac
-
-      # Repeats the patterns rather than reading the action's key, which
-      # interpolates a step output no other workflow reaches.
-      - name: Assert this mise config filename is hashable
-        env:
-          MISE_CONFIG: ${{ matrix.mise-config }}
-          LOCKFILE_ONLY: ${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'bun.lock', 'bun.lockb', 'yarn.lock') }}
-          WITH_CONFIG: >-
-            ${{ hashFiles('pnpm-lock.yaml', 'package-lock.json', 'bun.lock',
-            'bun.lockb', 'yarn.lock',
-            'mise.toml', 'mise.*.toml', 'mise.lock', 'mise.*.lock',
-            '.mise.toml', '.mise.*.toml', '.mise.lock', '.mise.*.lock',
-            'mise/config.toml', 'mise/config.*.toml',
-            'mise/config.lock', 'mise/config.*.lock',
-            '.mise/config.toml', '.mise/config.*.toml',
-            '.mise/config.lock', '.mise/config.*.lock',
-            '.config/mise.toml', '.config/mise.*.toml',
-            '.config/mise.lock', '.config/mise.*.lock',
-            '.config/mise/config.toml', '.config/mise/config.*.toml',
-            '.config/mise/config.lock', '.config/mise/config.*.lock',
-            '.config/mise/conf.d/*.toml',
-            '.tool-versions') }}
-        run: |
-          set -euo pipefail
-          [ -n "$WITH_CONFIG" ] || { echo "::error::hashFiles matched nothing at all"; exit 1; }
-          [ "$WITH_CONFIG" != "$LOCKFILE_ONLY" ] || {
-            echo "::error::$MISE_CONFIG is not covered by the key's patterns"
-            exit 1
-          }
