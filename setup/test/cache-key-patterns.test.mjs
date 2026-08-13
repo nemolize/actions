@@ -8,10 +8,17 @@ import { fileURLToPath } from "node:url";
 
 const ACTION = fileURLToPath(new URL("../action.yml", import.meta.url));
 
-async function cacheKeyPatterns() {
+async function cacheStep() {
   const src = await readFile(ACTION, "utf8");
-  const call = src.match(/hashFiles\(([\s\S]*?)\)\s*\}\}/);
-  assert.ok(call, "action.yml no longer has a hashFiles(...) call to read");
+  const step = src.match(/key: >-\n([\s\S]*?)\n\s*restore-keys:(.*)\n/);
+  assert.ok(step, "action.yml no longer has the key / restore-keys pair to read");
+  return { key: step[1], restoreKeys: step[2] };
+}
+
+async function cacheKeyPatterns() {
+  const { key } = await cacheStep();
+  const call = key.match(/hashFiles\(([\s\S]*?)\)\s*\}\}/);
+  assert.ok(call, "the key no longer has a hashFiles(...) call to read");
   return [...call[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 }
 
@@ -96,4 +103,28 @@ describe("store cache key patterns", () => {
       );
     });
   }
+});
+
+// MISE_ENV picks which of the hashed files mise reads, so two checkouts that
+// hash identically still install different toolchains.
+describe("store cache key profile separation", () => {
+  it("puts MISE_ENV in the key", async () => {
+    const { key } = await cacheStep();
+    assert.match(
+      key,
+      /env\.MISE_ENV/,
+      "two jobs differing only in MISE_ENV would share one key and restore " +
+        "each other's store",
+    );
+  });
+
+  it("puts MISE_ENV in restore-keys", async () => {
+    const { restoreKeys } = await cacheStep();
+    assert.match(
+      restoreKeys,
+      /env\.MISE_ENV/,
+      "a prefix stopping short of MISE_ENV lets a job fall back onto a store " +
+        "another profile built",
+    );
+  });
 });

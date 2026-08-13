@@ -65,12 +65,16 @@ those files mise actually reads. Without it two jobs over one checkout — one w
 `MISE_ENV` set, one without — hash an identical set of files while installing
 different toolchains, and would share a store.
 
-Every package manager above is exercised by this repository's own CI, which
-builds a fixture project per manager and runs the action against it. Which
-filenames the cache key covers is settled in `setup/test/` instead, against the
-patterns read out of `action.yml` — a config mise reads that no pattern matches,
-or a file that is not a config and does match, fails there rather than needing a
-runner.
+CI builds a pnpm fixture and runs the action against it end to end. The other
+three managers are covered by reading `setup/pm.sh`, not by a runner each — the
+matrix that once installed all four cost four jobs a push to re-verify a switch
+statement that changes a few times a year. A change to one of those branches is
+worth a manual run against a real project before release.
+
+What the cache key covers is settled in `setup/test/`, against the key read out
+of `action.yml`: a config mise reads that no pattern matches, a file that is not
+a config and does match, or a key that drops `MISE_ENV`, each fails there
+without a runner.
 
 `action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what
 each one is then asked to do. Adding a package manager means one new branch in
