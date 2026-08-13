@@ -1,0 +1,93 @@
+name: Probe
+
+on:
+  push:
+    branches: [probe/mise-config-ls]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe mise config ls
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: base
+          - name: profile
+            mise-env: ci
+
+    env:
+      MISE_ENV: ${{ matrix.mise-env }}
+
+    steps:
+      - name: Write a fixture covering several config locations
+        run: |
+          set -euo pipefail
+          mkdir -p .config/mise/conf.d mise .mise
+          printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
+          printf '[tools]\njq = "latest"\n' > mise.ci.toml
+          printf '[tools]\nshellcheck = "latest"\n' > .config/mise/conf.d/10-x.toml
+          printf '{\n  "name": "fixture",\n  "private": true\n}\n' > package.json
+
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+
+      - name: Q1 — what does mise report, and is anything outside the workspace?
+        run: |
+          set -euo pipefail
+          echo "--- raw ---"
+          mise config ls --json | jq -r '.[].path'
+          echo "--- workspace-relative only ---"
+          mise config ls --json |
+            jq -r --arg ws "$GITHUB_WORKSPACE/" \
+              '.[].path | select(startswith($ws)) | ltrimstr($ws)'
+
+      - name: Q2 — is the list stable across repeated runs?
+        run: |
+          set -euo pipefail
+          list() {
+            mise config ls --json |
+              jq -r --arg ws "$GITHUB_WORKSPACE/" \
+                '.[].path | select(startswith($ws)) | ltrimstr($ws)'
+          }
+          a=$(list); b=$(list); c=$(list)
+          [ "$a" = "$b" ] && [ "$b" = "$c" ] || {
+            echo "::error::mise config ls is not stable across runs"
+            printf '%s\n---\n%s\n---\n%s\n' "$a" "$b" "$c"
+            exit 1
+          }
+          echo "stable across 3 runs"
+
+      - name: Q3 — can the list drive hashFiles via a step output?
+        id: configs
+        run: |
+          set -euo pipefail
+          {
+            echo "paths<<EOF"
+            mise config ls --json |
+              jq -r --arg ws "$GITHUB_WORKSPACE/" \
+                '.[].path | select(startswith($ws)) | ltrimstr($ws)'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Q3 result — the hash hashFiles produces from it
+        env:
+          HASH: ${{ hashFiles(steps.configs.outputs.paths) }}
+        run: |
+          set -euo pipefail
+          echo "hash=$HASH"
+          [ -n "$HASH" ] || { echo "::error::hashFiles returned empty"; exit 1; }
+
+      - name: Q4 — does a config edit move the hash?
+        run: printf '[tools]\ngo = "latest"\n' >> mise.toml
+
+      - name: Q4 result
+        env:
+          BEFORE: ${{ hashFiles(steps.configs.outputs.paths) }}
+        run: |
+          set -euo pipefail
+          echo "hash after editing mise.toml=$BEFORE"
