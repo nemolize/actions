@@ -50,6 +50,12 @@ runs:
           echo "name=$name"
           echo "lockfile=$lockfile"
           echo "store=$store"
+          # hashFiles joins its arguments with newlines anyway, so one argument
+          # carrying the file verbatim is the same call with fewer places to
+          # edit — and setup/test can read the patterns without parsing YAML.
+          echo "mise_configs<<PATTERNS_EOF"
+          cat "$GITHUB_ACTION_PATH/mise-config-patterns.txt"
+          echo "PATTERNS_EOF"
         } >> "$GITHUB_OUTPUT"
         echo "detected $name, store at $store"
 
@@ -59,24 +65,11 @@ runs:
         # The store path is absent from the key on purpose: actions/cache already
         # hashes `path` into its own cache version, so a container job and a host
         # job never share an entry even under an identical key.
-        # Patterns mirror mise-action's, minus its `**/` prefix (which would
-        # sweep node_modules); MISE_ENV picks which of them mise actually reads.
+        # MISE_ENV picks which of the hashed configs mise actually reads.
         key: >-
           ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV
-          }}-${{ hashFiles(
-          steps.pm.outputs.lockfile,
-          'mise.toml', 'mise.*.toml', 'mise.lock', 'mise.*.lock',
-          '.mise.toml', '.mise.*.toml', '.mise.lock', '.mise.*.lock',
-          'mise/config.toml', 'mise/config.*.toml',
-          'mise/config.lock', 'mise/config.*.lock',
-          '.mise/config.toml', '.mise/config.*.toml',
-          '.mise/config.lock', '.mise/config.*.lock',
-          '.config/mise.toml', '.config/mise.*.toml',
-          '.config/mise.lock', '.config/mise.*.lock',
-          '.config/mise/config.toml', '.config/mise/config.*.toml',
-          '.config/mise/config.lock', '.config/mise/config.*.lock',
-          '.config/mise/conf.d/*.toml',
-          '.tool-versions') }}
+          }}-${{ hashFiles(steps.pm.outputs.lockfile,
+          steps.pm.outputs.mise_configs) }}
         # Carries MISE_ENV too: a prefix stopping short of it would let a job
         # fall back onto a store another profile built.
         restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV }}-

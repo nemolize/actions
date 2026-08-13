@@ -47,18 +47,20 @@ pnpm repository no longer invalidates the entry. The store path is deliberately
 absent from the key: `actions/cache` hashes `path` into its own cache version, so
 a container job and a host job never share an entry even under an identical key.
 
-The key also covers the mise config, under every filename mise accepts. The
-pattern list follows `MISE_CONFIG_FILE_PATTERNS` in `jdx/mise-action` — each
-config path, its `mise.<profile>.toml` variants, the matching `.lock` files and
-`.tool-versions` — so the toolchain is keyed on wherever this repository happens
-to declare it. Naming only `mise.toml` would drop the toolchain out of the key
-for a repository using any other form, and a mise change would then restore a
-store built against the old toolchain.
+The key also covers the mise config, under every filename mise accepts. Those
+filenames live in `setup/mise-config-patterns.txt`, one per line, which the
+action passes to `hashFiles` as a single argument and `setup/test/` reads to
+check what it covers — so the list has one home rather than a copy per reader.
+Naming only `mise.toml` would drop the toolchain out of the key for a repository
+using any other form, and a mise change would then restore a store built against
+the old toolchain.
 
-Two deliberate differences from that list: the patterns are anchored at the root
-rather than prefixed with `**/`, which would also sweep in a mise config vendored
-inside `node_modules`; and `.config/mise/conf.d/*.toml` is added, which mise reads
-but upstream's list does not name.
+The list follows `MISE_CONFIG_FILE_PATTERNS` in `jdx/mise-action` — each config
+path, its `mise.<profile>.toml` variants, the matching `.lock` files and
+`.tool-versions` — with two deliberate differences: the patterns are anchored at
+the root rather than prefixed with `**/`, which would also sweep in a mise config
+vendored inside `node_modules`; and `.config/mise/conf.d/*.toml` is added, which
+mise reads but upstream's list does not name.
 
 `MISE_ENV` is part of the key, and of `restore-keys`, because it selects which of
 those files mise actually reads. Without it two jobs over one checkout — one with
@@ -71,10 +73,9 @@ matrix that once installed all four cost four jobs a push to re-verify a switch
 statement that changes a few times a year. A change to one of those branches is
 worth a manual run against a real project before release.
 
-What the cache key covers is settled in `setup/test/`, against the key read out
-of `action.yml`: a config mise reads that no pattern matches, a file that is not
-a config and does match, or a key that drops `MISE_ENV`, each fails there
-without a runner.
+What the cache key covers is settled in `setup/test/`: a config mise reads that
+no pattern matches, a file that is not a config and does match, or a key that
+drops `MISE_ENV`, each fails there without a runner.
 
 `action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what
 each one is then asked to do. Adding a package manager means one new branch in

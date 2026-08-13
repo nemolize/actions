@@ -7,19 +7,13 @@ import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ACTION = fileURLToPath(new URL("../action.yml", import.meta.url));
-
-async function cacheStep() {
-  const src = await readFile(ACTION, "utf8");
-  const step = src.match(/key: >-\n([\s\S]*?)\n\s*restore-keys:(.*)\n/);
-  assert.ok(step, "action.yml no longer has the key / restore-keys pair to read");
-  return { key: step[1], restoreKeys: step[2] };
-}
+const PATTERNS = fileURLToPath(
+  new URL("../mise-config-patterns.txt", import.meta.url),
+);
 
 async function cacheKeyPatterns() {
-  const { key } = await cacheStep();
-  const call = key.match(/hashFiles\(([\s\S]*?)\)\s*\}\}/);
-  assert.ok(call, "the key no longer has a hashFiles(...) call to read");
-  return [...call[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  const src = await readFile(PATTERNS, "utf8");
+  return src.split("\n").filter((line) => line !== "");
 }
 
 const MISE_CONFIGS = [
@@ -108,8 +102,18 @@ describe("store cache key patterns", () => {
 // MISE_ENV picks which of the hashed files mise reads, so two checkouts that
 // hash identically still install different toolchains.
 describe("store cache key profile separation", () => {
+  // The key spans several lines and restore-keys one, so both are read as the
+  // whole cache step rather than by field.
+  const cacheStep = async () => {
+    const src = await readFile(ACTION, "utf8");
+    const step = src.slice(src.indexOf("actions/cache@"));
+    assert.notEqual(step, "", "action.yml no longer has a cache step to read");
+    return step;
+  };
+
   it("puts MISE_ENV in the key", async () => {
-    const { key } = await cacheStep();
+    const step = await cacheStep();
+    const key = step.slice(step.indexOf("key:"), step.indexOf("restore-keys:"));
     assert.match(
       key,
       /env\.MISE_ENV/,
@@ -119,9 +123,10 @@ describe("store cache key profile separation", () => {
   });
 
   it("puts MISE_ENV in restore-keys", async () => {
-    const { restoreKeys } = await cacheStep();
+    const step = await cacheStep();
+    const restoreKeys = step.slice(step.indexOf("restore-keys:"));
     assert.match(
-      restoreKeys,
+      restoreKeys.split("\n")[0],
       /env\.MISE_ENV/,
       "a prefix stopping short of MISE_ENV lets a job fall back onto a store " +
         "another profile built",
