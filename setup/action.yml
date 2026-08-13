@@ -46,18 +46,27 @@ runs:
           exit 1
         fi
 
+        # Asking mise what it read beats guessing at filenames: the profile
+        # MISE_ENV picked is accounted for, and only hashable paths survive.
+        # `sed`, not `jq`: the action's other steps hold to `sh` and no more.
+        configs=$(mise config ls --json |
+          sed -n 's/^ *"path": "\(.*\)",*$/\1/p' |
+          sed -n "s|^$GITHUB_WORKSPACE/||p")
+        if [ -z "$configs" ]; then
+          echo "::error::mise reported no config file under $GITHUB_WORKSPACE"
+          exit 1
+        fi
+
         {
           echo "name=$name"
           echo "lockfile=$lockfile"
           echo "store=$store"
-          # hashFiles joins its arguments with newlines anyway, so one argument
-          # carrying the file verbatim is the same call with fewer places to
-          # edit — and setup/test can read the patterns without parsing YAML.
-          echo "mise_configs<<PATTERNS_EOF"
-          cat "$GITHUB_ACTION_PATH/mise-config-patterns.txt"
-          echo "PATTERNS_EOF"
+          echo "mise_configs<<MISE_CONFIGS_EOF"
+          echo "$configs"
+          echo "MISE_CONFIGS_EOF"
         } >> "$GITHUB_OUTPUT"
         echo "detected $name, store at $store"
+        echo "mise config: $(echo "$configs" | tr '\n' ' ')"
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -65,13 +74,13 @@ runs:
         # The store path is absent from the key on purpose: actions/cache already
         # hashes `path` into its own cache version, so a container job and a host
         # job never share an entry even under an identical key.
-        # MISE_ENV picks which of the hashed configs mise actually reads.
+        # MISE_ENV sits ahead of the hash so the restore-keys prefix below can
+        # stop before it; the hash reflects the profile too, but a prefix that
+        # stopped at the OS would match whatever store another profile built.
         key: >-
           ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV
           }}-${{ hashFiles(steps.pm.outputs.lockfile,
           steps.pm.outputs.mise_configs) }}
-        # Carries MISE_ENV too: a prefix stopping short of it would let a job
-        # fall back onto a store another profile built.
         restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ env.MISE_ENV }}-
 
     - shell: sh
