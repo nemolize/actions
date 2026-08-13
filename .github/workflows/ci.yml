@@ -113,9 +113,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Which filenames the cache key covers is settled in setup/test, against
-        # the patterns read out of action.yml. These rows carry the part that
-        # needs a runner: that mise resolves the config and the install lands.
+        # setup/test settles which filenames the key covers; these rows carry
+        # the part needing a runner: mise resolves the config, install lands.
         include:
           - pm: pnpm
             mise-config: mise.toml

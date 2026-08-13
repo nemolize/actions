@@ -8,8 +8,6 @@ import { fileURLToPath } from "node:url";
 
 const ACTION = fileURLToPath(new URL("../action.yml", import.meta.url));
 
-// The patterns are read out of action.yml rather than restated here, so a
-// pattern deleted there fails this suite instead of silently narrowing the key.
 async function cacheKeyPatterns() {
   const src = await readFile(ACTION, "utf8");
   const call = src.match(/hashFiles\(([\s\S]*?)\)\s*\}\}/);
@@ -17,7 +15,6 @@ async function cacheKeyPatterns() {
   return [...call[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 }
 
-// Every path mise reads a config from, under each filename it accepts.
 const MISE_CONFIGS = [
   "mise.toml",
   "mise.ci.toml",
@@ -39,9 +36,8 @@ const MISE_CONFIGS = [
   ".tool-versions",
 ];
 
-// Files a repository plausibly carries that must not enter the key. A config
-// under node_modules is the reason these patterns are root-anchored rather
-// than carrying mise-action's `**/` prefix.
+// The node_modules and src entries are why the patterns are root-anchored
+// rather than carrying mise-action's `**/` prefix.
 const DECOYS = [
   "Cargo.toml",
   "misery.txt",
@@ -79,9 +75,8 @@ after(async () => {
 });
 
 describe("store cache key patterns", () => {
-  // node:fs/promises glob and @actions/glob were compared against this same
-  // fixture and returned an identical set, which is what lets a dependency-free
-  // suite stand in for the hashFiles() call the action actually makes.
+  // node:fs/promises glob stands in for hashFiles() because it returned an
+  // identical set to @actions/glob against this fixture.
   for (const rel of MISE_CONFIGS) {
     it(`hashes ${rel}`, () => {
       assert.ok(
