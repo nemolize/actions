@@ -46,12 +46,26 @@ runs:
           exit 1
         fi
 
+        configs=$("$GITHUB_ACTION_PATH/mise-configs.sh" "$GITHUB_WORKSPACE")
+        if [ -z "$configs" ]; then
+          echo "::error::no mise config found under $GITHUB_WORKSPACE. mise reported:"
+          mise config ls --json >&2
+          exit 1
+        fi
+
         {
           echo "name=$name"
           echo "lockfile=$lockfile"
           echo "store=$store"
+          # actions/cache rejects a key containing a comma, and MISE_ENV takes a
+          # comma-separated profile list.
+          echo "mise_env=$(printf '%s' "${MISE_ENV-}" | tr ',' '-')"
+          echo "mise_configs<<MISE_CONFIGS_EOF"
+          echo "$configs"
+          echo "MISE_CONFIGS_EOF"
         } >> "$GITHUB_OUTPUT"
         echo "detected $name, store at $store"
+        echo "mise config: $(echo "$configs" | tr '\n' ' ')"
 
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
@@ -59,8 +73,13 @@ runs:
         # The store path is absent from the key on purpose: actions/cache already
         # hashes `path` into its own cache version, so a container job and a host
         # job never share an entry even under an identical key.
-        key: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ hashFiles(steps.pm.outputs.lockfile, 'mise.toml') }}
-        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-
+        key: >-
+          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
+          steps.pm.outputs.mise_env }}-${{
+          hashFiles(steps.pm.outputs.lockfile, steps.pm.outputs.mise_configs) }}
+        # Stops before the hash, but not before mise_env: a prefix ending at the
+        # OS would match whatever store another profile built.
+        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ steps.pm.outputs.mise_env }}-
 
     - shell: sh
       env:

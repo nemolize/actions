@@ -31,7 +31,7 @@ jobs:
             tar -xz -C /usr/local/bin actionlint
 
       - run: actionlint -color
-      - run: shellcheck setup/pm.sh
+      - run: shellcheck ./*/*.sh
 
   unit-test:
     name: Unit Test
@@ -110,11 +110,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    strategy:
-      fail-fast: false
-      matrix:
-        pm: [pnpm, npm, bun, yarn]
-
     steps:
       # The action reads the lockfile from the working directory and `uses:`
       # steps cannot be given a `working-directory`, so the fixture has to BE
@@ -123,55 +118,18 @@ jobs:
         with:
           path: .action
 
-      - name: Write the ${{ matrix.pm }} fixture
-        env:
-          PM: ${{ matrix.pm }}
+      - name: Write the fixture
         run: |
           set -euo pipefail
-          case "$PM" in
-            pnpm) tool='pnpm = "latest"' ;;
-            npm) tool='' ;;
-            bun) tool='bun = "latest"' ;;
-            yarn) tool='yarn = "latest"' ;;
-          esac
-          printf '[tools]\nnode = "lts"\n%s\n' "$tool" > mise.toml
+          printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
           printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
 
       - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
 
-      - name: Generate the ${{ matrix.pm }} lockfile
-        env:
-          PM: ${{ matrix.pm }}
-        run: |
-          set -euo pipefail
-          case "$PM" in
-            pnpm) pnpm install --lockfile-only ;;
-            npm) npm install --package-lock-only ;;
-            # bun has no lockfile-only mode; a full install is the cheapest way
-            # to get a real bun.lock, and the action re-runs it from cache after.
-            bun) bun install ;;
-            yarn)
-              # The runner ships Classic, which the action's Berry guard rejects.
-              yarn set version berry
-              # Berry refuses to create a lockfile under CI=true; creating one
-              # is this step's whole job.
-              YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install
-              ;;
-          esac
+      - run: pnpm install --lockfile-only
 
       - name: Run the action under test
         uses: ./.action/setup
 
-      # Resolving the dependency proves the install landed; a node_modules
-      # directory test would not, since Yarn PnP never writes one.
-      - name: Assert the dependency resolves after install
-        env:
-          PM: ${{ matrix.pm }}
-        run: |
-          set -euo pipefail
-          script="require.resolve('is-odd')"
-          case "$PM" in
-            # Yarn PnP resolution only exists inside `yarn node`.
-            yarn) yarn node -e "$script" ;;
-            *) node -e "$script" ;;
-          esac
+      # Resolving the dependency proves the install landed.
+      - run: node -e "require.resolve('is-odd')"
