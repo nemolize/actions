@@ -48,19 +48,24 @@ absent from the key: `actions/cache` hashes `path` into its own cache version, s
 a container job and a host job never share an entry even under an identical key.
 
 The key also covers the mise config. Rather than name the filenames mise reads —
-there are a dozen forms, and upstream adds to them — the action runs `mise config
-ls` and hashes whatever mise says it read. A repository declaring its toolchain
-in `.mise.toml`, `.config/mise/conf.d/*.toml` or `.tool-versions` is keyed on it
-without this action knowing those names, and the profile `MISE_ENV` selected is
-already reflected in the answer.
+there are a dozen forms, and upstream adds to them — `setup/mise-configs.sh` runs
+`mise config ls` and prints whatever mise says it read, one path per line, which
+the key hashes. A repository declaring its toolchain in `.mise.toml`,
+`.config/mise/conf.d/*.toml` or `.tool-versions` is keyed on it without this
+action knowing those names, and the profile `MISE_ENV` selected is already
+reflected in the answer. `hashFiles` splits each argument on newlines, so that
+one multi-line value is one pattern per config file.
 
 Only paths under the workspace survive: `hashFiles` resolves against it, so a
 global config on a self-hosted runner would contribute nothing while appearing to
-be covered. mise reporting no config under the workspace is a hard error rather
-than an empty hash, which would key every repository alike.
+be covered. The workspace is resolved with `pwd -P` first, because mise reports
+canonical paths and a workspace reached through a symlink would otherwise match
+none of them. No config under the workspace is a hard error rather than an empty
+hash, which would key every repository alike.
 
-`MISE_ENV` is still spelled out in the key so `restore-keys` can stop before the
-hash: a prefix ending at the OS would match whatever store another profile built.
+`MISE_ENV` is spelled out in the key so `restore-keys` can stop before the hash:
+a prefix ending at the OS would match whatever store another profile built. Its
+commas become `-`, since `actions/cache` rejects a key containing one.
 
 CI builds a pnpm fixture and runs the action against it end to end. The other
 three managers are covered by reading `setup/pm.sh`, not by a runner each — the
@@ -68,10 +73,11 @@ matrix that once installed all four cost four jobs a push to re-verify a switch
 statement that changes a few times a year. A change to one of those branches is
 worth a manual run against a real project before release.
 
-`setup/test/` covers the key without a runner, against a recorded `mise config
-ls` rather than a live mise: a config outside the workspace that survives the
-filter, a key that stops reading mise's answer, or a `restore-keys` prefix that
-drops `MISE_ENV`, each fails there.
+`setup/test/` covers this without a runner: it executes `mise-configs.sh` with
+`mise` stubbed to a recorded response, so a config outside the workspace that
+survives the filter, a symlinked workspace that matches nothing, a key that stops
+reading mise's answer, or a `restore-keys` that is no longer a prefix of the key,
+each fails there.
 
 `action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what
 each one is then asked to do. Adding a package manager means one new branch in

@@ -31,7 +31,7 @@ jobs:
             tar -xz -C /usr/local/bin actionlint
 
       - run: actionlint -color
-      - run: shellcheck setup/pm.sh
+      - run: shellcheck ./*/*.sh
 
   unit-test:
     name: Unit Test
