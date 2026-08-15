@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { locate, readBlock, remove, upsert, wrap } from "../src/block.mjs";
+import { locate, NOTICE_LINE, readBlock, remove, upsert, wrap } from "../src/block.mjs";
 
 const M = "coverage";
 const block = (inner) => wrap(M, inner);
@@ -51,6 +51,11 @@ describe("upsert", () => {
     assert.equal(upsert(body, M, "table"), `${body}\n\n${block("table")}`);
   });
 
+  it("replaces a block written before the notice existed, in place", () => {
+    const body = `intro\n\n<!-- ${M}-start -->\nold\n<!-- ${M}-end -->\n\noutro`;
+    assert.equal(upsert(body, M, "new"), `intro\n\n${block("new")}\n\noutro`);
+  });
+
   it("refuses a start marker with no end", () => {
     assert.throws(() => upsert(`<!-- ${M}-start -->\nstray`, M, "x"), /no matching/);
   });
@@ -69,9 +74,21 @@ describe("wrap", () => {
     assert.throws(() => wrap(M, `<!-- ${M}-start -->`), /would break/);
   });
 
+  it("puts the notice below the start marker, leaving that line untouched", () => {
+    assert.equal(wrap(M, "table"), `<!-- ${M}-start -->\n${NOTICE_LINE}\ntable\n<!-- ${M}-end -->`);
+  });
+
+  it("leaves an empty block bare, with nothing to protect", () => {
+    assert.equal(wrap(M, ""), `<!-- ${M}-start -->\n<!-- ${M}-end -->`);
+  });
+
+  it("refuses content carrying the notice on a line of its own", () => {
+    assert.throws(() => wrap(M, `hello\n${NOTICE_LINE}\nworld`), /only the block itself may carry/);
+  });
+
   it("keeps content that only mentions a marker mid-line", () => {
     const inner = `write \`<!-- ${M}-end -->\` to close it`;
-    assert.equal(wrap(M, inner), `<!-- ${M}-start -->\n${inner}\n<!-- ${M}-end -->`);
+    assert.equal(wrap(M, inner), `<!-- ${M}-start -->\n${NOTICE_LINE}\n${inner}\n<!-- ${M}-end -->`);
   });
 });
 
@@ -110,7 +127,7 @@ describe("locate", () => {
   it("finds the block's line range", () => {
     assert.deepEqual(
       { ...locate(`a\n${block("t")}`, M), lines: undefined },
-      { lines: undefined, from: 1, to: 3 },
+      { lines: undefined, from: 1, to: 1 + block("t").split("\n").length - 1 },
     );
   });
 });
