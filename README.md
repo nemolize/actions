@@ -125,6 +125,7 @@ The block the action owns is delimited by the marker it is given:
 
 ```markdown
 <!-- coverage-start -->
+<!-- Generated — edits are overwritten. Keep both markers. -->
 ### Coverage
 ...
 <!-- coverage-end -->
@@ -133,6 +134,12 @@ The block the action owns is delimited by the marker it is given:
 Anything outside those two lines belongs to whoever wrote it and is left alone,
 so several jobs can each own a block in the same description by picking
 different markers.
+
+The notice is there because the markers are the block's only trace: whoever
+edits the description next sees comments that look like anyone else's, and
+deleting one fails every later run. It sits below the start marker rather than
+on it, so that line stays byte-identical and a block written before this
+existed is still found and replaced in place.
 
 ### Inputs
 

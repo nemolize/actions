@@ -6,6 +6,10 @@ export const markersFor = (marker) => ({
   end: `<!-- ${marker}-end -->`,
 });
 
+// Kept off the marker line so that line stays byte-identical and blocks
+// written before this notice existed are still found.
+export const NOTICE_LINE = "<!-- Generated — edits are overwritten. Keep both markers. -->";
+
 // GitHub stores bodies with CRLF; normalising keeps a re-run from reporting a
 // difference against the block this action itself wrote.
 export const normalise = (text) => (text ?? "").replaceAll("\r\n", "\n");
@@ -15,11 +19,19 @@ export const wrap = (marker, content) => {
   const inner = normalise(content).trim();
   // Content carrying its own marker line would close the block early, so the
   // remainder would land outside it and be re-appended on every later run.
-  const stray = inner.split("\n").find((line) => line === start || line === end);
-  if (stray) {
-    throw new Error(`body contains the line ${stray}, which would break the ${marker} block`);
+  const strayMarker = inner.split("\n").find((line) => line === start || line === end);
+  if (strayMarker) {
+    throw new Error(`body contains the line ${strayMarker}, which would break the ${marker} block`);
   }
-  return inner ? `${start}\n${inner}\n${end}` : `${start}\n${end}`;
+  // A second notice does not break the block, but it does undermine one: the
+  // line means "everything here is generated", which is worth nothing if
+  // supplied content can also claim it.
+  if (inner.split("\n").includes(NOTICE_LINE)) {
+    throw new Error(`body contains the line ${NOTICE_LINE}, which only the block itself may carry`);
+  }
+  // An empty block gets no notice: there is nothing to protect, and it would
+  // be the only visible trace of an otherwise invisible block.
+  return inner ? `${start}\n${NOTICE_LINE}\n${inner}\n${end}` : `${start}\n${end}`;
 };
 
 // Whole lines only: prose that mentions a marker is describing it, not opening
