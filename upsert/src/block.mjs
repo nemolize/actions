@@ -43,7 +43,14 @@ export const locate = (body, marker) => {
     return null;
   }
   const to = lines.indexOf(end, from + 1);
-  if (to === -1) throw new Error(`found ${start} with no matching ${end}`);
+  if (to === -1) {
+    // An end line before the start is not a missing end — say which it is, so
+    // the fix is "reorder" rather than "add a line that is already there".
+    if (lines.includes(end)) {
+      throw new Error(`found ${end} before ${start}, so the ${marker} block is inside out`);
+    }
+    throw new Error(`found ${start} with no matching ${end}`);
+  }
   return { lines, from, to };
 };
 

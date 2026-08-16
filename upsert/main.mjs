@@ -1,5 +1,14 @@
 import process from "node:process";
-import { boolean, choice, event, fail, input, notice, setOutput } from "./src/actions.mjs";
+import {
+  boolean,
+  choice,
+  event,
+  fail,
+  input,
+  notice,
+  positiveInteger,
+  setOutput,
+} from "./src/actions.mjs";
 import { normalise, readBlock, remove, upsert, wrap } from "./src/block.mjs";
 import { detectCollection, readBody, writeBody } from "./src/github.mjs";
 import { collectionFromEvent } from "./src/target.mjs";
@@ -32,10 +41,10 @@ const run = async () => {
   const repository = input("repository").trim() || eventRepository;
   const requested = input("number").trim();
   const number = requested
-    ? Number(requested)
+    ? positiveInteger(requested)
     : (payload.pull_request?.number ?? payload.issue?.number);
 
-  if (!Number.isInteger(number) || number <= 0) {
+  if (!Number.isSafeInteger(number) || number <= 0) {
     if (requested) throw new Error(`number must be a positive integer, got "${requested}"`);
     stop("no pull request or issue to write to; nothing to do");
   }

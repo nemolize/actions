@@ -11,6 +11,13 @@ export const boolean = (name) => {
   throw new Error(`${name} must be true or false, got "${input(name)}"`);
 };
 
+// Digits only, before `Number`: it also reads `0x2a` and `1e21`, and rounds
+// anything past 2^53 to a *different* number that still looks like an integer.
+export const positiveInteger = (text) =>
+  /^\d+$/.test(text) && Number.isSafeInteger(Number(text)) && Number(text) > 0
+    ? Number(text)
+    : null;
+
 export const choice = (name, allowed, supported = allowed) => {
   const value = input(name).trim() || allowed[0];
   if (!allowed.includes(value)) {
