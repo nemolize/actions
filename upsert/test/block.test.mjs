@@ -63,6 +63,14 @@ describe("upsert", () => {
   it("refuses an end marker with no start", () => {
     assert.throws(() => upsert(`stray\n<!-- ${M}-end -->`, M, "x"), /no <!-- coverage-start/);
   });
+
+  it("names a reversed pair as reversed, not as a missing end", () => {
+    const reversed = `<!-- ${M}-end -->\nstray\n<!-- ${M}-start -->`;
+    assert.throws(
+      () => upsert(reversed, M, "x"),
+      (error) => /inside out/.test(error.message) && !/no matching/.test(error.message),
+    );
+  });
 });
 
 describe("wrap", () => {

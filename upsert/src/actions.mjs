@@ -11,6 +11,18 @@ export const boolean = (name) => {
   throw new Error(`${name} must be true or false, got "${input(name)}"`);
 };
 
+export const positiveInteger = (name) => {
+  const value = input(name).trim();
+  if (!value) return undefined;
+  // Digits only, and safe: `Number` also reads `0x2a` and `1e21`, and past 2^53
+  // it maps several literals onto one double, so the target stops being unique.
+  const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer, got "${value}"`);
+  }
+  return parsed;
+};
+
 export const choice = (name, allowed, supported = allowed) => {
   const value = input(name).trim() || allowed[0];
   if (!allowed.includes(value)) {
