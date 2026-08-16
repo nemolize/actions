@@ -29,7 +29,6 @@ const inputOf = (fromStep, name) => {
   return folded.join(" ");
 };
 
-// Both caches key on the same segment; a leg's tool version has to reach each.
 describe("the overrides segment reaches both caches", () => {
   it("is computed before mise-action, whose own cache needs it", () => {
     assert.ok(

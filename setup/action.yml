@@ -20,8 +20,6 @@ runs:
         # CalVer, ~20 releases a month, no compatibility promise across them: an
         # unpinned mise reaches every consumer the day it regresses.
         version: 2026.8.5
-        # `{{default}}` keeps mise-action's own key shape; the segment is empty
-        # for a repository that sets no override, leaving its key untouched.
         cache_key: "{{default}}${{ steps.overrides.outputs.segment }}"
 
     - id: pm
@@ -88,9 +86,8 @@ runs:
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.pm.outputs.store }}
-        # The store path is absent from the key on purpose: actions/cache already
-        # hashes `path` into its own cache version, so a container job and a host
-        # job never share an entry even under an identical key.
+        # The store path is absent from the key on purpose: actions/cache hashes
+        # `path` into its cache version, so container and host jobs never collide.
         key: >-
           ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
           steps.pm.outputs.mise_env }}${{ steps.overrides.outputs.segment }}-${{

@@ -41,7 +41,6 @@ const run = async () => {
   }
   if (!repository) throw new Error("repository is required outside a workflow run");
 
-  // A fork's token is read-only, so the write below could only fail.
   const eventPr = payload.pull_request;
   const targetsEventPr = eventPr?.number === number && repository === eventRepository;
   if (skipForks && targetsEventPr && eventPr.head?.repo?.full_name !== repository) {
@@ -70,7 +69,7 @@ const run = async () => {
   let changed = false;
   let done = false;
 
-  for (let attempt = 1; attempt <= ATTEMPTS && !done; attempt++) {
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     const current = normalise(await readBody(token, repository, collection, number));
     const next = apply(current);
 

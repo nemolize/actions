@@ -1,6 +1,3 @@
-// Every function here is pure, so the interesting behaviour is testable
-// without touching the API.
-
 export const markersFor = (marker) => ({
   start: `<!-- ${marker}-start -->`,
   end: `<!-- ${marker}-end -->`,
@@ -23,9 +20,8 @@ export const wrap = (marker, content) => {
   if (strayMarker) {
     throw new Error(`body contains the line ${strayMarker}, which would break the ${marker} block`);
   }
-  // A second notice does not break the block, but it does undermine one: the
-  // line means "everything here is generated", which is worth nothing if
-  // supplied content can also claim it.
+  // A second notice does not break the block, but "everything here is
+  // generated" is worth nothing if supplied content can also claim it.
   if (inner.split("\n").includes(NOTICE_LINE)) {
     throw new Error(`body contains the line ${NOTICE_LINE}, which only the block itself may carry`);
   }
