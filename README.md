@@ -67,17 +67,58 @@ hash, which would key every repository alike.
 a prefix ending at the OS would match whatever store another profile built. Its
 commas become `-`, since `actions/cache` rejects a key containing one.
 
+The key also covers `MISE_<TOOL>_VERSION`. A matrix that varies one of these —
+the usual way to test a range of Node majors — leaves every config file
+byte-identical, so hashing the configs alone keys each leg the same and lets them
+share one entry. `setup/mise-overrides.sh` digests the overrides the environment
+carries, and the digest joins both keys.
+
+**Both** keys, because there are two caches and the same matrix splits each:
+`mise-action` caches the toolchain it installs, and this action caches the
+package manager's store. `mise-action`'s own key covers the config files and
+`MISE_ENV` but not these overrides, so without the digest the second leg's Node
+can never be saved — the key is already taken — and that leg re-downloads it on
+every run, silently. The digest is computed before `mise-action` runs and passed
+to it as `cache_key: {{default}}<digest>`, which keeps that action's own key
+shape and appends to it.
+
+The digest, rather than the versions spelled out: `actions/cache` rejects a key
+containing a comma and caps it at 512 characters, both of which a `path:/…`
+version value reaches on its own. The overrides are sorted before digesting,
+because the environment's order is not the shell's to promise and a key that
+reorders misses its own cache.
+
+The variable name is read the way mise reads it — case-folded, `_` and `-` as
+one, backend aliases resolved, and mise's three non-tool `MISE_*_VERSION` vars
+skipped — so `MISE_NODEJS_VERSION` and `MISE_NODE_VERSION` key alike, as they
+name one tool. The value's own case is kept, since `lts/Hydrogen` and
+`lts/hydrogen` are different versions. This mirrors mise's `tool_from_env_var_name`
+rather than deriving from it; the tests record the cases, and it is kept in step
+by hand.
+
+A repository that sets no override gets an **empty** segment — not an empty
+string between two separators. The separator ships with the digest, so both keys
+stay byte-identical to what they were and no existing consumer loses its cache.
+A *blank* value counts as no override for the same reason mise reads it that way
+(it splits the value on whitespace, so a blank one names no version at all) —
+which is what a `MISE_NODE_VERSION: ${{ matrix.node }}` that expanded to nothing
+sends.
+
 CI builds a pnpm fixture and runs the action against it end to end. The other
 three managers are covered by reading `setup/pm.sh`, not by a runner each — the
 matrix that once installed all four cost four jobs a push to re-verify a switch
 statement that changes a few times a year. A change to one of those branches is
 worth a manual run against a real project before release.
 
-`setup/test/` covers this without a runner: it executes `mise-configs.sh` with
-`mise` stubbed to a recorded response, so a config outside the workspace that
-survives the filter, a symlinked workspace that matches nothing, a key that stops
-reading mise's answer, or a `restore-keys` that is no longer a prefix of the key,
-each fails there.
+`setup/test/` covers this without a runner. It executes `mise-configs.sh` with
+`mise` stubbed to a recorded response and `mise-overrides.sh` under a constructed
+environment, and reads `action.yml` for how the two are wired in. So a config
+outside the workspace that survives the filter, a symlinked workspace that
+matches nothing, an override list that follows the environment's order rather
+than sorting, a variable name read differently than mise reads it, an empty
+override that stops being empty, a digest that reaches one cache but not the
+other, or a `restore-keys` that is no longer a prefix of the key, each fails
+there.
 
 `action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what
 each one is then asked to do. Adding a package manager means one new branch in

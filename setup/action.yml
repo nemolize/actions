@@ -4,7 +4,22 @@ description: "Install mise-managed tools, then install dependencies with the pac
 runs:
   using: "composite"
   steps:
+    # Ahead of mise-action, whose own tool cache needs the same answer: its key
+    # covers the configs and MISE_ENV, so two legs share one entry without this.
+    - id: overrides
+      shell: sh
+      run: |
+        set -eu
+        # The separator ships with the digest rather than beside it in the key,
+        # so an empty answer leaves both keys byte-identical to what they were.
+        digest=$("$GITHUB_ACTION_PATH/mise-overrides.sh")
+        echo "segment=${digest:+-$digest}" >> "$GITHUB_OUTPUT"
+
     - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+      with:
+        # `{{default}}` keeps mise-action's own key shape; the segment is empty
+        # for a repository that sets no override, leaving its key untouched.
+        cache_key: "{{default}}${{ steps.overrides.outputs.segment }}"
 
     - id: pm
       # `sh`, not `bash`: a composite action's shell name is resolved literally,
@@ -75,11 +90,13 @@ runs:
         # job never share an entry even under an identical key.
         key: >-
           ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
-          steps.pm.outputs.mise_env }}-${{
+          steps.pm.outputs.mise_env }}${{ steps.overrides.outputs.segment }}-${{
           hashFiles(steps.pm.outputs.lockfile, steps.pm.outputs.mise_configs) }}
-        # Stops before the hash, but not before mise_env: a prefix ending at the
-        # OS would match whatever store another profile built.
-        restore-keys: ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{ steps.pm.outputs.mise_env }}-
+        # Stops before the hash, but not before mise_env or the overrides: a
+        # prefix ending at either matches a store another matrix leg built.
+        restore-keys: >-
+          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
+          steps.pm.outputs.mise_env }}${{ steps.overrides.outputs.segment }}-
 
     - shell: sh
       env:
