@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
-# Names the mise config files under the workspace, one per line, for the cache
-# key to hash. Asking mise beats listing filenames: the profile MISE_ENV picked
-# is accounted for, and a config form mise adds later needs no change here.
+# Names the mise config files under the workspace for the cache key to hash.
+# Asking mise covers the MISE_ENV profile and any config form mise adds later.
 set -eu
 
 workspace=${1:?usage: mise-configs.sh <workspace>}

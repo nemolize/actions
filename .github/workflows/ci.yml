@@ -130,8 +130,7 @@ jobs:
 
     steps:
       # The action reads the lockfile from the working directory and `uses:`
-      # steps cannot be given a `working-directory`, so the fixture has to BE
-      # the workspace root. The action itself is checked out beside it.
+      # steps take no `working-directory`, so the fixture has to BE the workspace root.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: .action
@@ -153,8 +152,8 @@ jobs:
       - name: Run the action under test
         uses: ./.action/setup
 
-      # Resolving the dependency proves the install landed.
-      - run: node -e "require.resolve('is-odd')"
+      - name: The dependency the action installed resolves
+        run: node -e "require.resolve('is-odd')"
 
       # The override has to reach the toolchain that ran, not just the key.
       - name: The override selected the Node that ran

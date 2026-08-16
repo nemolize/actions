@@ -16,8 +16,6 @@ const miseReports = (...paths) =>
     2,
   );
 
-// Runs the real script with `mise` replaced by a stub printing the recorded
-// response, so the suite needs no mise and still exercises the shipped code.
 const configsUnder = async (workspace, json) => {
   const bin = await mkdtemp(path.join(tmpdir(), "mise-stub-"));
   const payload = path.join(bin, "response.json");
@@ -37,7 +35,7 @@ const configsUnder = async (workspace, json) => {
 
 const workspaceWith = async (...files) => {
   const dir = await mkdtemp(path.join(tmpdir(), "mise-ws-"));
-  const real = await execFileSync("sh", ["-c", `cd "${dir}" && pwd -P`], {
+  const real = execFileSync("sh", ["-c", `cd "${dir}" && pwd -P`], {
     encoding: "utf8",
   }).trim();
   for (const rel of files) {
@@ -81,9 +79,8 @@ describe("mise-configs.sh", () => {
     );
   });
 
-  // mise reports canonical paths, so a workspace reached through a symlink
-  // matches nothing unless the script resolves it — and the action treats no
-  // match as a hard error, which would break a repo that works today.
+  // mise reports canonical paths, so an unresolved symlinked workspace matches
+  // nothing — and the action turns no match into a hard error.
   it("matches when the workspace is reached through a symlink", async () => {
     const real = await workspaceWith("mise.toml");
     const link = path.join(await mkdtemp(path.join(tmpdir(), "mise-link-")), "ws");
