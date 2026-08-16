@@ -106,9 +106,25 @@ jobs:
           exit "$fail"
 
   setup-integration-test:
-    name: Setup Integration Test
+    name: Setup Integration Test (${{ matrix.label }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The `none` leg is the ordinary case; the two node legs differ ONLY by
+        # the override, which is what has to reach both cache keys.
+        include:
+          - label: no override
+            node: ""
+          - label: node 22
+            node: "22"
+          - label: node 24
+            node: "24"
+
+    env:
+      MISE_NODE_VERSION: ${{ matrix.node }}
 
     steps:
       # The action reads the lockfile from the working directory and `uses:`
@@ -133,3 +149,33 @@ jobs:
 
       # Resolving the dependency proves the install landed.
       - run: node -e "require.resolve('is-odd')"
+
+      # The override has to reach the toolchain that ran, not just the key.
+      - name: The override selected the Node that ran
+        if: matrix.node != ''
+        env:
+          WANT: ${{ matrix.node }}
+        run: |
+          set -euo pipefail
+          got="$(node -p 'process.versions.node.split(".")[0]')"
+          [ "$got" = "$WANT" ] || {
+            echo "::error::MISE_NODE_VERSION=$WANT but node $got ran"
+            exit 1
+          }
+          echo "node $got, as the override asked"
+
+      # The unit tests assert the digest's properties against the script; this
+      # asserts them against the script as the runner actually resolves it.
+      - name: Legs differing only by the override must not share a key
+        run: |
+          set -euo pipefail
+          script=./.action/setup/mise-overrides.sh
+          none="$(env -u MISE_NODE_VERSION sh "$script")"
+          n22="$(MISE_NODE_VERSION=22 sh "$script")"
+          n24="$(MISE_NODE_VERSION=24 sh "$script")"
+          alias24="$(env -u MISE_NODE_VERSION MISE_NODEJS_VERSION=24 sh "$script")"
+          fail=0
+          [ -z "$none" ] || { echo "::error::no override must answer empty, got '$none'"; fail=1; }
+          [ "$n22" != "$n24" ] || { echo "::error::node 22 and 24 share the digest '$n22'"; fail=1; }
+          [ "$alias24" = "$n24" ] || { echo "::error::MISE_NODEJS_VERSION keyed apart from MISE_NODE_VERSION"; fail=1; }
+          exit "$fail"

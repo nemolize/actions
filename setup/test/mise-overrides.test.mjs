@@ -36,6 +36,22 @@ describe("mise-overrides.sh", () => {
     assert.equal(digestUnder({ MISE_node_VERSION: "24" }), node24, "the name is case-folded");
   });
 
+  // A `${{ matrix.x }}` that expanded to nothing arrives as a blank value, and
+  // must not cost that leg the key it would otherwise have had.
+  it("treats a blank value as no override at all", () => {
+    for (const value of ["", " ", "\t"]) {
+      assert.equal(digestUnder({ MISE_NODE_VERSION: value }), "", `for ${JSON.stringify(value)}`);
+    }
+  });
+
+  it("splits the value on whitespace as mise does", () => {
+    assert.equal(
+      digestUnder({ MISE_NODE_VERSION: "  22   24  " }),
+      digestUnder({ MISE_NODE_VERSION: "22 24" }),
+      "mise reads both as the same two versions",
+    );
+  });
+
   it("ignores MISE settings that are not a tool version", () => {
     for (const name of ["MISE_ENV", "MISE_INSTALL_VERSION", "MISE_TOOL_VERSION"]) {
       assert.equal(

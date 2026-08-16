@@ -15,7 +15,11 @@ normalise() {
       # cache the two in fact share.
       nodejs) tool=node ;;
     esac
-    printf '%s=%s\n' "$tool" "$value"
+    # mise reads the value with `split_whitespace`, so a blank one asks for no
+    # version — as a `${{ matrix.x }}` that expanded to nothing does.
+    versions=$(printf '%s' "$value" | tr -s '[:space:]' ' ' | sed 's/^ //; s/ $//')
+    [ -n "$versions" ] || continue
+    printf '%s=%s\n' "$tool" "$versions"
   done
 }
 

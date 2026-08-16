@@ -99,6 +99,10 @@ by hand.
 A repository that sets no override gets an **empty** segment — not an empty
 string between two separators. The separator ships with the digest, so both keys
 stay byte-identical to what they were and no existing consumer loses its cache.
+A *blank* value counts as no override for the same reason mise reads it that way
+(it splits the value on whitespace, so a blank one names no version at all) —
+which is what a `MISE_NODE_VERSION: ${{ matrix.node }}` that expanded to nothing
+sends.
 
 CI builds a pnpm fixture and runs the action against it end to end. The other
 three managers are covered by reading `setup/pm.sh`, not by a runner each — the
