@@ -62,24 +62,46 @@ describe("choice", () => {
 
 describe("positiveInteger", () => {
   it("reads a plain issue number", () => {
-    assert.equal(positiveInteger("42"), 42);
-    assert.equal(positiveInteger("007"), 7);
+    set("number", "42");
+    assert.equal(positiveInteger("number"), 42);
+  });
+
+  it("keeps leading zeros readable as the number they spell", () => {
+    set("number", "007");
+    assert.equal(positiveInteger("number"), 7);
+  });
+
+  it("is undefined when unset, so a caller can fall back", () => {
+    assert.equal(positiveInteger("number"), undefined);
+    set("number", "   ");
+    assert.equal(positiveInteger("number"), undefined);
   });
 
   it("refuses the numeric literals `Number` would silently accept", () => {
     for (const value of ["1e2", "0x2A", "0b101", "0o52", "1e21", "+5", "7.0"]) {
-      assert.equal(positiveInteger(value), null, value);
+      set("number", value);
+      assert.throws(() => positiveInteger("number"), /must be a positive integer/, value);
     }
   });
 
-  it("refuses a number too large to survive the round trip", () => {
-    // `Number("9007199254740993")` is 9007199254740992 — a different issue.
-    assert.equal(positiveInteger("9007199254740993"), null);
+  it("accepts the largest uniquely representable integer, and refuses past it", () => {
+    set("number", String(Number.MAX_SAFE_INTEGER));
+    assert.equal(positiveInteger("number"), Number.MAX_SAFE_INTEGER);
+    set("number", (2n ** 53n).toString());
+    assert.throws(() => positiveInteger("number"), /must be a positive integer/);
+    set("number", (2n ** 53n + 1n).toString());
+    assert.throws(() => positiveInteger("number"), /must be a positive integer/);
   });
 
   it("refuses what is not a number at all", () => {
-    for (const value of ["", "abc", "-3", "0", "Infinity", "1_000", " 7 "]) {
-      assert.equal(positiveInteger(value), null, value);
+    for (const value of ["abc", "-3", "0", "Infinity", "1_000"]) {
+      set("number", value);
+      assert.throws(() => positiveInteger("number"), /must be a positive integer/, value);
     }
+  });
+
+  it("names the input in the error, as its siblings do", () => {
+    set("number", "nope");
+    assert.throws(() => positiveInteger("number"), /^Error: number must be/);
   });
 });

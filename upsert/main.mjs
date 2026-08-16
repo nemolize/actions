@@ -39,13 +39,10 @@ const run = async () => {
   const payload = event();
   const eventRepository = process.env["GITHUB_REPOSITORY"];
   const repository = input("repository").trim() || eventRepository;
-  const requested = input("number").trim();
-  const number = requested
-    ? positiveInteger(requested)
-    : (payload.pull_request?.number ?? payload.issue?.number);
+  const number =
+    positiveInteger("number") ?? payload.pull_request?.number ?? payload.issue?.number;
 
   if (!Number.isSafeInteger(number) || number <= 0) {
-    if (requested) throw new Error(`number must be a positive integer, got "${requested}"`);
     stop("no pull request or issue to write to; nothing to do");
   }
   if (!repository) throw new Error("repository is required outside a workflow run");

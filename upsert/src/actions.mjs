@@ -11,12 +11,17 @@ export const boolean = (name) => {
   throw new Error(`${name} must be true or false, got "${input(name)}"`);
 };
 
-// Digits only, before `Number`: it also reads `0x2a` and `1e21`, and rounds
-// anything past 2^53 to a *different* number that still looks like an integer.
-export const positiveInteger = (text) =>
-  /^\d+$/.test(text) && Number.isSafeInteger(Number(text)) && Number(text) > 0
-    ? Number(text)
-    : null;
+export const positiveInteger = (name) => {
+  const value = input(name).trim();
+  if (!value) return undefined;
+  // Digits only, and safe: `Number` also reads `0x2a` and `1e21`, and past 2^53
+  // it maps several literals onto one double, so the target stops being unique.
+  const parsed = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer, got "${value}"`);
+  }
+  return parsed;
+};
 
 export const choice = (name, allowed, supported = allowed) => {
   const value = input(name).trim() || allowed[0];
