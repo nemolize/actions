@@ -115,6 +115,14 @@ request rather than as a broken run. The pin is *not* a supply-chain measure:
 `mise-action` verifies the release's minisign signature and the binary's SHA256 by
 default, and pinning by `sha256` instead would disable that.
 
+A hand-picked pin clears the same three-day release age Renovate's own bumps wait
+out, since the aging is what a pin on a tool this regression-prone is buying and
+choosing the newest release by hand is the one bump that would skip it. The
+version is written in two places — the action, and the CI leg that builds the
+lockfile fixture the action then reads — because a composite action's input has
+no constant to share. `setup/test/mise-version.test.mjs` holds them equal, so the
+pairing under test stays the pairing a consumer runs.
+
 CI builds a pnpm fixture and runs the action against it end to end. The other
 three managers are covered by reading `setup/pm.sh`, not by a runner each — the
 matrix that once installed all four cost four jobs a push to re-verify a switch
