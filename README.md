@@ -104,6 +104,17 @@ A *blank* value counts as no override for the same reason mise reads it that way
 which is what a `MISE_NODE_VERSION: ${{ matrix.node }}` that expanded to nothing
 sends.
 
+The mise binary is pinned, not left at `mise-action`'s `latest` default. mise
+releases on CalVer around twenty times a month and makes no compatibility promise
+across those releases, so an unpinned binary reaches every consumer of this action
+the day it regresses — `2026.3.5` added lockfile cosign provenance and turned
+`mise install` into a hard CI failure for repositories whose lockfiles predated it
+(`jdx/mise-action#393`). Renovate's `github-actions` manager reads
+`jdx/mise-action`'s `version` input natively, so the bump arrives as a pull
+request rather than as a broken run. The pin is *not* a supply-chain measure:
+`mise-action` verifies the release's minisign signature and the binary's SHA256 by
+default, and pinning by `sha256` instead would disable that.
+
 CI builds a pnpm fixture and runs the action against it end to end. The other
 three managers are covered by reading `setup/pm.sh`, not by a runner each — the
 matrix that once installed all four cost four jobs a push to re-verify a switch
