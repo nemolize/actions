@@ -145,7 +145,7 @@ jobs:
         with:
           # Matches the pin in setup/action.yml so the fixture's lockfile is
           # written by the same mise the action under test then runs.
-          version: 2026.8.10
+          version: 2026.8.11
 
       - run: pnpm install --lockfile-only
 
