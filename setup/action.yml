@@ -19,7 +19,7 @@ runs:
       with:
         # CalVer, ~20 releases a month, no compatibility promise across them: an
         # unpinned mise reaches every consumer the day it regresses.
-        version: 2026.8.11
+        version: 2026.8.12
         cache_key: "{{default}}${{ steps.overrides.outputs.segment }}"
 
     - id: pm
