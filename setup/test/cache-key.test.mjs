@@ -29,7 +29,7 @@ const inputOf = (fromStep, name) => {
   return folded.join(" ");
 };
 
-describe("the overrides segment reaches both caches", () => {
+describe("the overrides segment reaches the tool cache", () => {
   it("is computed before mise-action, whose own cache needs it", () => {
     assert.ok(
       src.indexOf("id: overrides") < src.indexOf("jdx/mise-action@"),
@@ -45,10 +45,6 @@ describe("the overrides segment reaches both caches", () => {
     );
   });
 
-  it("is wired into the package manager's store cache", () => {
-    assert.match(inputOf("actions/cache@", "key"), /steps\.overrides\.outputs\.segment/);
-  });
-
   it("is produced by the script, not spelled out in the step", () => {
     const step = src.slice(src.indexOf("id: overrides"), src.indexOf("jdx/mise-action@"));
     assert.match(step, /mise-overrides\.sh/);
@@ -57,30 +53,6 @@ describe("the overrides segment reaches both caches", () => {
       /segment=\$\{digest:\+-\$digest\}/,
       "the separator has to ship with the digest, or an empty answer still " +
         "changes every existing consumer's key",
-    );
-  });
-});
-
-describe("store cache key", () => {
-  it("hashes what mise reported, not a hardcoded filename", () => {
-    assert.match(
-      inputOf("actions/cache@", "key"),
-      /steps\.pm\.outputs\.mise_configs/,
-      "the key stopped reading mise's own answer, so a config under any " +
-        "filename it was not told about drops out of the key",
-    );
-  });
-
-  it("keeps restore-keys a prefix of the key", () => {
-    const key = inputOf("actions/cache@", "key").replace(/\s+/g, " ");
-    const restoreKeys = inputOf("actions/cache@", "restore-keys").replace(/\s+/g, " ");
-
-    const hash = key.indexOf("-${{ hashFiles");
-    assert.notEqual(hash, -1, "the key no longer ends in the hash");
-    assert.equal(
-      `${key.slice(0, hash)}-`,
-      restoreKeys,
-      "restore-keys that is not a prefix of the key silently never matches",
     );
   });
 });

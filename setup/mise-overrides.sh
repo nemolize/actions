@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Digests the environment's tool-version overrides so the cache keys tell two
-# matrix legs apart. Prints nothing when no override is set.
+# Digests the environment's tool-version overrides so mise-action's cache key
+# tells two matrix legs apart. Prints nothing when no override is set.
 set -eu
 
 # Normalises the name as mise's own `tool_from_env_var_name` does, and leaves
