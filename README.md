@@ -33,52 +33,28 @@ No inputs. The package manager is detected from the lockfile, in this order:
 | `bun.lock` / `bun.lockb` | bun | `bun install --frozen-lockfile` |
 | `yarn.lock` | Yarn Berry (>= 2) | `yarn install --immutable` |
 
-Yarn Classic shares the `yarn.lock` filename but has neither `--immutable` nor a
-`cacheFolder` setting, so the action rejects it rather than taking a path that
-would half-work.
+Yarn Classic shares the `yarn.lock` filename but has no `--immutable`, so the
+action rejects it rather than taking a path that would half-work.
 
 No lockfile is a hard error — a silent skip would leave dependencies missing and
-fail a later step with an unrelated-looking message. The same applies when the
-package manager reports no cache directory.
+fail a later step with an unrelated-looking message.
 
-The package manager's store is cached, keyed on the lockfile that detection
-selected — not on every lockfile name, so an unrelated `yarn.lock` sitting in a
-pnpm repository no longer invalidates the entry. The store path is deliberately
-absent from the key: `actions/cache` hashes `path` into its own cache version, so
-a container job and a host job never share an entry even under an identical key.
+Dependencies are not cached; every run installs from the registry. Caching the
+store with `restore-keys` let it accumulate every version a lockfile had ever
+named, and restoring and re-saving that archive took far longer than the install
+it spared, which on GitHub-hosted runners is about as fast cold as from a full
+store. Caching `node_modules` instead is what `actions/cache` advises against,
+and on a hit pnpm skips the project's own `prepare`, dropping whatever it
+generates outside `node_modules`.
 
-The key also covers the mise config. Rather than name the filenames mise reads —
-there are a dozen forms, and upstream adds to them — `setup/mise-configs.sh` runs
-`mise config ls` and prints whatever mise says it read, one path per line, which
-the key hashes. A repository declaring its toolchain in `.mise.toml`,
-`.config/mise/conf.d/*.toml` or `.tool-versions` is keyed on it without this
-action knowing those names, and the profile `MISE_ENV` selected is already
-reflected in the answer. `hashFiles` splits each argument on newlines, so that
-one multi-line value is one pattern per config file.
-
-Only paths under the workspace survive: `hashFiles` resolves against it, so a
-global config on a self-hosted runner would contribute nothing while appearing to
-be covered. The workspace is resolved with `pwd -P` first, because mise reports
-canonical paths and a workspace reached through a symlink would otherwise match
-none of them. No config under the workspace is a hard error rather than an empty
-hash, which would key every repository alike.
-
-`MISE_ENV` is spelled out in the key so `restore-keys` can stop before the hash:
-a prefix ending at the OS would match whatever store another profile built. Its
-commas become `-`, since `actions/cache` rejects a key containing one.
-
-The key also covers `MISE_<TOOL>_VERSION`. A matrix that varies one of these —
+`mise-action` caches the toolchain it installs, and this action extends its key
+with `MISE_<TOOL>_VERSION`. A matrix that varies one of these —
 the usual way to test a range of Node majors — leaves every config file
-byte-identical, so hashing the configs alone keys each leg the same and lets them
-share one entry. `setup/mise-overrides.sh` digests the overrides the environment
-carries, and the digest joins both keys.
-
-**Both** keys, because there are two caches and the same matrix splits each:
-`mise-action` caches the toolchain it installs, and this action caches the
-package manager's store. `mise-action`'s own key covers the config files and
+byte-identical, and `mise-action`'s own key covers the config files and
 `MISE_ENV` but not these overrides, so without the digest the second leg's Node
 can never be saved — the key is already taken — and that leg re-downloads it on
-every run, silently. The digest is computed before `mise-action` runs and passed
+every run, silently. `setup/mise-overrides.sh` digests the overrides the
+environment carries. The digest is computed before `mise-action` runs and passed
 to it as `cache_key: {{default}}<digest>`, which keeps that action's own key
 shape and appends to it.
 
@@ -97,8 +73,8 @@ rather than deriving from it; the tests record the cases, and it is kept in step
 by hand.
 
 A repository that sets no override gets an **empty** segment — not an empty
-string between two separators. The separator ships with the digest, so both keys
-stay byte-identical to what they were and no existing consumer loses its cache.
+string between two separators. The separator ships with the digest, so the key
+stays byte-identical to what they were and no existing consumer loses its cache.
 A *blank* value counts as no override for the same reason mise reads it that way
 (it splits the value on whitespace, so a blank one names no version at all) —
 which is what a `MISE_NODE_VERSION: ${{ matrix.node }}` that expanded to nothing
@@ -129,14 +105,11 @@ matrix that once installed all four cost four jobs a push to re-verify a switch
 statement that changes a few times a year. A change to one of those branches is
 worth a manual run against a real project before release.
 
-`setup/test/` covers this without a runner. It executes `mise-configs.sh` with
-`mise` stubbed to a recorded response and `mise-overrides.sh` under a constructed
-environment, and reads `action.yml` for how the two are wired in. So a config
-outside the workspace that survives the filter, a symlinked workspace that
-matches nothing, an override list that follows the environment's order rather
-than sorting, a variable name read differently than mise reads it, an empty
-override that stops being empty, a digest that reaches one cache but not the
-other, or a `restore-keys` that is no longer a prefix of the key, each fails
+`setup/test/` covers this without a runner. It executes `mise-overrides.sh` under
+a constructed environment and reads `action.yml` for how it is wired in. So an
+override list that follows the environment's order rather than sorting, a
+variable name read differently than mise reads it, an empty override that stops
+being empty, or a digest that no longer reaches `mise-action`'s key, each fails
 there.
 
 `action.yml` decides *which* package manager is in play; `setup/pm.sh` holds what

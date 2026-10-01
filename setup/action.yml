@@ -4,14 +4,14 @@ description: "Install mise-managed tools, then install dependencies with the pac
 runs:
   using: "composite"
   steps:
-    # Ahead of mise-action, whose own tool cache needs the same answer: its key
-    # covers the configs and MISE_ENV, so two legs share one entry without this.
+    # Ahead of mise-action, whose tool cache key covers the configs and MISE_ENV
+    # but not the overrides, so two legs share one entry without this.
     - id: overrides
       shell: sh
       run: |
         set -eu
         # The separator ships with the digest rather than beside it in the key,
-        # so an empty answer leaves both keys byte-identical to what they were.
+        # so an empty answer leaves the key byte-identical to what it was.
         digest=$("$GITHUB_ACTION_PATH/mise-overrides.sh")
         echo "segment=${digest:+-$digest}" >> "$GITHUB_OUTPUT"
 
@@ -30,21 +30,13 @@ runs:
         set -eu
         if [ -f pnpm-lock.yaml ]; then
           name=pnpm
-          lockfile=pnpm-lock.yaml
         elif [ -f package-lock.json ]; then
           name=npm
-          lockfile=package-lock.json
-        elif [ -f bun.lock ]; then
+        elif [ -f bun.lock ] || [ -f bun.lockb ]; then
           name=bun
-          lockfile=bun.lock
-        elif [ -f bun.lockb ]; then
-          name=bun
-          lockfile=bun.lockb
         elif [ -f yarn.lock ]; then
           name=yarn
-          lockfile=yarn.lock
-          # yarn.lock is also Yarn Classic's lockfile, and Classic has neither
-          # `--immutable` nor a `cacheFolder` setting — it answers `undefined`.
+          # yarn.lock is also Yarn Classic's lockfile, and Classic has no `--immutable`.
           major=$(yarn --version)
           major=${major%%.*}
           if [ "$major" -lt 2 ]; then
@@ -56,47 +48,8 @@ runs:
           exit 1
         fi
 
-        store=$("$GITHUB_ACTION_PATH/pm.sh" store "$name")
-        if [ -z "$store" ] || [ "$store" = "undefined" ]; then
-          echo "::error::$name reported no cache directory (got '$store')"
-          exit 1
-        fi
-
-        configs=$("$GITHUB_ACTION_PATH/mise-configs.sh" "$GITHUB_WORKSPACE")
-        if [ -z "$configs" ]; then
-          echo "::error::no mise config found under $GITHUB_WORKSPACE. mise reported:"
-          mise config ls --json >&2
-          exit 1
-        fi
-
-        {
-          echo "name=$name"
-          echo "lockfile=$lockfile"
-          echo "store=$store"
-          # actions/cache rejects a key containing a comma, and MISE_ENV takes a
-          # comma-separated profile list.
-          echo "mise_env=$(printf '%s' "${MISE_ENV-}" | tr ',' '-')"
-          echo "mise_configs<<MISE_CONFIGS_EOF"
-          echo "$configs"
-          echo "MISE_CONFIGS_EOF"
-        } >> "$GITHUB_OUTPUT"
-        echo "detected $name, store at $store"
-        echo "mise config: $(echo "$configs" | tr '\n' ' ')"
-
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ steps.pm.outputs.store }}
-        # The store path is absent from the key on purpose: actions/cache hashes
-        # `path` into its cache version, so container and host jobs never collide.
-        key: >-
-          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
-          steps.pm.outputs.mise_env }}${{ steps.overrides.outputs.segment }}-${{
-          hashFiles(steps.pm.outputs.lockfile, steps.pm.outputs.mise_configs) }}
-        # Stops before the hash, but not before mise_env or the overrides: a
-        # prefix ending at either matches a store another matrix leg built.
-        restore-keys: >-
-          ${{ steps.pm.outputs.name }}-store-${{ runner.os }}-${{
-          steps.pm.outputs.mise_env }}${{ steps.overrides.outputs.segment }}-
+        echo "name=$name" >> "$GITHUB_OUTPUT"
+        echo "detected $name"
 
     - shell: sh
       env:
