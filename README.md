@@ -318,7 +318,11 @@ green with a notice; it is not skipped, because a caller can only skip a job by
 repeating the label's name in its own `if:`. The label is read from the event, so
 re-running an old run uses the labels it started with.
 
-**Any other event passes with a notice**, since there is no base to diff against.
+**Only `pull_request` events are checked.** `pull_request_target` fails with an
+error, because its default checkout is the base repository's, not the pull
+request's changes, so a pass there would verify nothing. Any other event, such as
+`push` or `workflow_dispatch`, passes with a notice, since there is no base to
+diff against.
 
 **A diff that cannot be read fails**, naming `fetch-depth: 0`. A shallow clone has
 no merge base, and passing on one would let every change through.
