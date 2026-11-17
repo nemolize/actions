@@ -1,0 +1,7 @@
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # setup/action.yml's remote action is locked through `$/setup`, which
+        # gh-actions-lock writes as a tag.
+        jdx/mise-action: ref-pin
