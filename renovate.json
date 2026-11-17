@@ -1,4 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>nemolize/renovate-config"]
+  "extends": ["local>nemolize/renovate-config"],
+  "packageRules": [
+    {
+      "description": "Workflows reference actions by tag and .github/workflows/actions.lock records the commit, so the shared preset's digest pinning would write the SHAs back inline",
+      "matchManagers": ["github-actions"],
+      "pinDigests": false
+    }
+  ]
 }

@@ -18,7 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       # Pinned rather than taken from the runner image, so a lint failure here
       # reproduces against the same version locally.
@@ -33,13 +35,30 @@ jobs:
       - run: actionlint -color
       - run: shellcheck ./*/*.sh
 
+      - name: Install gh-actions-lock and zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_ACTIONS_LOCK_VERSION: v0.4.1
+          ZIZMOR_VERSION: 1.32.0
+        run: |
+          set -euo pipefail
+          gh extension install github/gh-actions-lock --pin "$GH_ACTIONS_LOCK_VERSION"
+          pipx install "zizmor==${ZIZMOR_VERSION}"
+
+      - name: Check the lockfile is current and lint the workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/check-workflows.sh
+
   unit-test:
     name: Unit Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 24
       # Globbed rather than named, so an action added later is covered without
@@ -57,7 +76,9 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Start from a description without the block
         uses: ./upsert
@@ -131,9 +152,10 @@ jobs:
     steps:
       # The action reads the lockfile from the working directory and `uses:`
       # steps take no `working-directory`, so the fixture has to BE the workspace root.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           path: .action
+          persist-credentials: false
 
       - name: Write the fixture
         run: |
@@ -141,7 +163,7 @@ jobs:
           printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
           printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
 
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: jdx/mise-action@v4.3.0
         with:
           # Matches the pin in setup/action.yml so the fixture's lockfile is
           # written by the same mise the action under test then runs.

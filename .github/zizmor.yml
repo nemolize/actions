@@ -1,0 +1,5 @@
+rules:
+  self-repository:
+    # The `$/` it suggests fails actionlint 1.7.12, and `$/setup` makes
+    # gh-actions-lock rewrite setup/action.yml's hash pin to a tag.
+    disable: true

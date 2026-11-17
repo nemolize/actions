@@ -14,6 +14,28 @@ patches and minor releases while never crossing a breaking change. Pin by commit
 SHA and note the version in a trailing comment; the tags are for reading, the SHA
 is what actually resolves.
 
+## Workflow dependencies
+
+This repository's own workflows reference actions by tag, and
+`.github/workflows/actions.lock` records the commit each tag resolved to — for
+the actions the workflows use and for the actions those use in turn. CI fails when
+the lockfile is stale or a `uses:` is missing from it, and `zizmor` lints the
+workflows and the actions in this repository.
+
+Both checks run locally with `scripts/check-workflows.sh`. It needs `gh` with the
+[`gh-actions-lock`](https://github.com/github/gh-actions-lock) extension and
+[`zizmor`](https://docs.zizmor.sh), at the versions pinned in
+`.github/workflows/ci.yml`.
+
+To change a dependency, edit the tag in the workflow, run `gh actions-lock`, and
+commit the workflow and the lockfile together. Renovate does the same when it
+bumps an action. `setup/action.yml` keeps `jdx/mise-action` pinned by commit SHA:
+the lockfile cannot lock a composite action's own definition, and consumers of
+`setup` get exactly the pin written there.
+
+`gh actions-lock` is still 0.x, so its flags and the lockfile format can change
+between releases. CI pins its version, so a new one arrives as a reviewable edit.
+
 ## `setup`
 
 Installs the toolchain declared in the repository's mise config, then installs
