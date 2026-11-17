@@ -1,0 +1,24 @@
+name: Require a changeset when shipped code changes
+description: Fail a pull request that changes shipped paths without adding a changeset, unless it carries the skip label.
+author: Masaru Nemoto
+
+branding:
+  icon: file-plus
+  color: green
+
+inputs:
+  paths:
+    description: Newline-separated path prefixes whose changes ship. End a directory with `/`.
+    default: src/
+  label:
+    description: Pull request label that skips the check. Blank disables the skip.
+    default: skip-changeset
+
+runs:
+  using: composite
+  steps:
+    - shell: sh
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_LABEL: ${{ inputs.label }}
+      run: node "$GITHUB_ACTION_PATH/main.mjs"
