@@ -304,7 +304,8 @@ check alone, not a build matrix that shares a workflow with it.
 prefixes of the repository-relative path, so `src/` matches `src/a.js` and not
 `docs/src/a.js`, and nothing is a glob. Blank lines are ignored; an input with no
 entry left is an error, not a check of nothing, and so is an entry starting with
-`./` or `/`, which no path can match.
+`./` or `/`, which no path can match, or one containing `*` or `?`, which is a
+glob written where a prefix is expected.
 
 **A changeset is a file added directly in `.changeset/`, ending in `.md`.**
 `.changeset/README.md`, which `changeset init` writes, does not count, and a

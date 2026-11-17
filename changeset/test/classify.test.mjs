@@ -12,6 +12,20 @@ describe("parsePaths", () => {
     assert.throws(() => parsePaths("/src/"), /"\/src\/" can never match/);
   });
 
+  it("refuses an entry written as a glob, naming it", () => {
+    assert.throws(() => parsePaths("src/**"), /"src\/\*\*" is a glob: paths takes literal prefixes/);
+    assert.throws(() => parsePaths("src/\nsrc/*.js"), /"src\/\*\.js" is a glob/);
+    assert.throws(() => parsePaths("src/?/"), /"src\/\?\/" is a glob/);
+  });
+
+  it("reports a leading ./ or / before the glob in the same entry", () => {
+    assert.throws(() => parsePaths("/src/**"), /can never match/);
+  });
+
+  it("keeps an entry with [ ] { } as a literal prefix", () => {
+    assert.deepEqual(parsePaths("app/[id]/\nsrc/{a}/"), ["app/[id]/", "src/{a}/"]);
+  });
+
   it("answers empty when nothing is named", () => {
     assert.deepEqual(parsePaths(" \n\n"), []);
   });
