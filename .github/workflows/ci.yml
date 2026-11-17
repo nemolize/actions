@@ -81,13 +81,13 @@ jobs:
           persist-credentials: false
 
       - name: Start from a description without the block
-        uses: ./upsert
+        uses: $/upsert
         with:
           marker: self-test
           mode: remove
 
       - id: write
-        uses: ./upsert
+        uses: $/upsert
         with:
           marker: self-test
           body: |
@@ -96,7 +96,7 @@ jobs:
             Written by `${{ github.sha }}`.
 
       - id: rewrite
-        uses: ./upsert
+        uses: $/upsert
         with:
           marker: self-test
           body: |
@@ -105,7 +105,7 @@ jobs:
             Written by `${{ github.sha }}`.
 
       - id: clear
-        uses: ./upsert
+        uses: $/upsert
         with:
           marker: self-test
           mode: remove
@@ -172,7 +172,7 @@ jobs:
       - run: pnpm install --lockfile-only
 
       - name: Run the action under test
-        uses: ./.action/setup
+        uses: $/setup
 
       - name: The dependency the action installed resolves
         run: node -e "require.resolve('is-odd')"

@@ -20,7 +20,9 @@ This repository's own workflows reference actions by tag, and
 `.github/workflows/actions.lock` records the commit each tag resolved to — for
 the actions the workflows use and for the actions those use in turn. CI fails when
 the lockfile is stale or a `uses:` is missing from it, and `zizmor` lints the
-workflows and the actions in this repository.
+workflows and the actions in this repository. Workflows call this repository's
+own actions as `$/setup` and `$/upsert`, which is how the lockfile follows the
+remote actions they use.
 
 Both checks run locally with `scripts/check-workflows.sh`. It needs `gh` with the
 [`gh-actions-lock`](https://github.com/github/gh-actions-lock) extension and
@@ -29,9 +31,9 @@ Both checks run locally with `scripts/check-workflows.sh`. It needs `gh` with th
 
 To change a dependency, edit the tag in the workflow, run `gh actions-lock`, and
 commit the workflow and the lockfile together. Renovate does the same when it
-bumps an action. `setup/action.yml` keeps `jdx/mise-action` pinned by commit SHA:
-the lockfile cannot lock a composite action's own definition, and consumers of
-`setup` get exactly the pin written there.
+bumps an action. `setup/action.yml` names `jdx/mise-action` by tag, which the
+lockfile resolves for this repository's runs; a consumer that wants the same
+guarantee keeps a lockfile of its own, which follows the action into `setup`.
 
 `gh actions-lock` is still 0.x, so its flags and the lockfile format can change
 between releases. CI pins its version, so a new one arrives as a reviewable edit.

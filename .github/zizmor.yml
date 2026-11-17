@@ -1,5 +1,7 @@
 rules:
-  self-repository:
-    # The `$/` it suggests fails actionlint 1.7.12, and `$/setup` makes
-    # gh-actions-lock rewrite setup/action.yml's hash pin to a tag.
-    disable: true
+  unpinned-uses:
+    config:
+      policies:
+        # setup/action.yml's remote action is locked through `$/setup`, which
+        # gh-actions-lock writes as a tag.
+        jdx/mise-action: ref-pin

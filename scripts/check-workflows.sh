@@ -5,7 +5,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-export GH_TOKEN="${GH_TOKEN:-$(gh auth token)}"
+[ -n "${GH_TOKEN:-}" ] || GH_TOKEN="$(gh auth token)"
+export GH_TOKEN
 
-gh actions-lock --verify --no-interactive --ignore-local-actions
+gh actions-lock --verify --no-interactive
 zizmor --no-progress .
