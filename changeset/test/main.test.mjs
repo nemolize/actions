@@ -207,6 +207,20 @@ describe("what the check refuses to guess", () => {
     assert.match(stdout, /::error::paths entry "\.\/src\/" can never match/);
   });
 
+  it("fails rather than passing when an entry is a glob, even with the skip label", async () => {
+    const root = await repo({ change: (r) => write(r, "src/a.js") });
+    const { stdout, code } = await check(root, { paths: "src/**", labels: ["skip-changeset"] });
+    assert.equal(code, 1);
+    assert.match(stdout, /::error::paths entry "src\/\*\*" is a glob/);
+  });
+
+  it("checks an entry containing [ ] as the literal prefix it is", async () => {
+    const root = await repo({ change: (r) => write(r, "app/[id]/page.js") });
+    const { stdout, code } = await check(root, { paths: "app/[id]/" });
+    assert.equal(code, 1);
+    assert.match(stdout, /::error::app\/\[id\]\/page\.js changed without a new changeset/);
+  });
+
   it("fails naming fetch-depth when the base ref is not there", async () => {
     const root = await repo({ change: (r) => write(r, "src/a.js") });
     git(root, "update-ref", "-d", "refs/remotes/origin/main");
