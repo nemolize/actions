@@ -303,14 +303,16 @@ check alone, not a build matrix that shares a workflow with it.
 **A path ships when it starts with an entry of `paths`.** Entries are literal
 prefixes of the repository-relative path, so `src/` matches `src/a.js` and not
 `docs/src/a.js`, and nothing is a glob. Blank lines are ignored; an input with no
-entry left is an error, not a check of nothing.
+entry left is an error, not a check of nothing, and so is an entry starting with
+`./` or `/`, which no path can match.
 
 **A changeset is a file added directly in `.changeset/`, ending in `.md`.**
 `.changeset/README.md`, which `changeset init` writes, does not count, and a
 changeset that was only edited does not either. A file moved to a new name counts
 as added.
 
-**The label passes the check without reading the diff.** The job runs and ends
+**The label passes the check without reading the diff.** It is matched without
+regard to case. The job runs and ends
 green with a notice; it is not skipped, because a caller can only skip a job by
 repeating the label's name in its own `if:`. The label is read from the event, so
 re-running an old run uses the labels it started with.

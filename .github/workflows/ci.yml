@@ -142,11 +142,6 @@ jobs:
             changeset: true
             expect: success
 
-    env:
-      GITHUB_EVENT_NAME: pull_request
-      GITHUB_EVENT_PATH: ${{ github.workspace }}/event.json
-      GITHUB_BASE_REF: main
-
     steps:
       # The action diffs the workspace's own repository, so the fixture has to BE
       # the workspace root.
@@ -180,20 +175,39 @@ jobs:
           fi
           git commit -q -m change
 
+      # The runner overwrites the GITHUB_* event variables before every script
+      # step, so they are set on the node process itself.
       - id: check
+        continue-on-error: true
+        run: |
+          GITHUB_EVENT_NAME=pull_request \
+          GITHUB_EVENT_PATH="$PWD/event.json" \
+          GITHUB_BASE_REF=main \
+          INPUT_PATHS=src/ \
+          INPUT_LABEL=skip-changeset \
+          node .action/changeset/main.mjs
+
+      # Runs action.yml as a caller does, so only where the real event matches the fixture.
+      - id: action
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && !contains(github.event.pull_request.labels.*.name, 'skip-changeset')
         uses: $/changeset
         continue-on-error: true
 
       - name: The action reached the verdict the fixture calls for
         env:
           EXPECT: ${{ matrix.expect }}
-          OUTCOME: ${{ steps.check.outcome }}
+          OUTCOMES: ${{ steps.check.outcome }} ${{ steps.action.outcome }}
         run: |
           set -eu
-          [ "$OUTCOME" = "$EXPECT" ] || {
-            echo "::error::expected the action to end in $EXPECT, got $OUTCOME"
-            exit 1
-          }
+          fail=0
+          for got in $OUTCOMES; do
+            [ "$got" = skipped ] && continue
+            [ "$got" = "$EXPECT" ] || {
+              echo "::error::expected the action to end in $EXPECT, got $got"
+              fail=1
+            }
+          done
+          exit "$fail"
 
   setup-integration-legs:
     name: Setup Integration Test (${{ matrix.label }})

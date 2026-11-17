@@ -164,6 +164,12 @@ describe("the skip label", () => {
     assert.match(stdout, /::notice::the pull request carries skip-changeset/);
   });
 
+  it("matches without regard to case, as the workflow expression it replaces did", async () => {
+    const root = await repo({ change: (r) => write(r, "src/a.js") });
+    assert.equal((await check(root, { labels: ["Skip-Changeset"] })).code, 0);
+    assert.equal((await check(root, { label: "SKIP-CHANGESET", labels: ["skip-changeset"] })).code, 0);
+  });
+
   it("is the one named by the label input", async () => {
     const root = await repo({ change: (r) => write(r, "src/a.js") });
     assert.equal((await check(root, { label: "no-release", labels: ["skip-changeset"] })).code, 1);
@@ -192,6 +198,13 @@ describe("what the check refuses to guess", () => {
     const { stdout, code } = await check(root, { paths: " \n\n" });
     assert.equal(code, 1);
     assert.match(stdout, /::error::paths names no path prefix/);
+  });
+
+  it("fails rather than passing when an entry can never match", async () => {
+    const root = await repo({ change: (r) => write(r, "src/a.js") });
+    const { stdout, code } = await check(root, { paths: "./src/" });
+    assert.equal(code, 1);
+    assert.match(stdout, /::error::paths entry "\.\/src\/" can never match/);
   });
 
   it("fails naming fetch-depth when the base ref is not there", async () => {

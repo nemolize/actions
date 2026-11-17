@@ -36,8 +36,8 @@ const run = async () => {
   const label = (process.env["INPUT_LABEL"] ?? "").trim();
 
   const payload = JSON.parse(await readFile(process.env["GITHUB_EVENT_PATH"], "utf8"));
-  const labels = (payload.pull_request?.labels ?? []).map((l) => l.name);
-  if (label && labels.includes(label)) {
+  const labels = (payload.pull_request?.labels ?? []).map((l) => l.name.toLowerCase());
+  if (label && labels.includes(label.toLowerCase())) {
     console.log(`::notice::the pull request carries ${label}; no changeset required`);
     return;
   }

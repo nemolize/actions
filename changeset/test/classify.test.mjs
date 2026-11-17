@@ -7,6 +7,11 @@ describe("parsePaths", () => {
     assert.deepEqual(parsePaths("src/\n\n  packages/ \r\n"), ["src/", "packages/"]);
   });
 
+  it("refuses an entry git's repository-relative names can never start with", () => {
+    assert.throws(() => parsePaths("src/\n./lib/"), /"\.\/lib\/" can never match/);
+    assert.throws(() => parsePaths("/src/"), /"\/src\/" can never match/);
+  });
+
   it("answers empty when nothing is named", () => {
     assert.deepEqual(parsePaths(" \n\n"), []);
   });
