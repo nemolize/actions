@@ -193,6 +193,23 @@ describe("what the check refuses to guess", () => {
     assert.match(stdout, /::notice::not a pull_request event/);
   });
 
+  it("passes with a notice on workflow_dispatch", async () => {
+    const root = await mkdtemp(join(tmpdir(), "changeset-"));
+    dirs.push(root);
+    const { stdout, code } = await check(root, { event: "workflow_dispatch" });
+    assert.equal(code, 0);
+    assert.match(stdout, /::notice::not a pull_request event/);
+  });
+
+  for (const labels of [[], ["skip-changeset"]]) {
+    it(`fails on pull_request_target, with labels [${labels}]`, async () => {
+      const root = await repo({ change: (r) => write(r, "src/a.js") });
+      const { stdout, code } = await check(root, { event: "pull_request_target", labels });
+      assert.equal(code, 1);
+      assert.match(stdout, /::error::pull_request_target is not supported; only pull_request is checked/);
+    });
+  }
+
   it("fails when paths names nothing", async () => {
     const root = await repo({ change: (r) => write(r, "src/a.js") });
     const { stdout, code } = await check(root, { paths: " \n\n" });

@@ -26,7 +26,14 @@ const diff = async (base, ...flags) => {
 };
 
 const run = async () => {
-  if (process.env["GITHUB_EVENT_NAME"] !== "pull_request") {
+  const event = process.env["GITHUB_EVENT_NAME"];
+  if (event === "pull_request_target") {
+    throw new Error(
+      "pull_request_target is not supported; only pull_request is checked. " +
+        "Run this check from a pull_request workflow.",
+    );
+  }
+  if (event !== "pull_request") {
     console.log("::notice::not a pull_request event; nothing to check");
     return;
   }
