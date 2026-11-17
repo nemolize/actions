@@ -126,6 +126,89 @@ jobs:
           check "removing the block" "$CLEARED" true
           exit "$fail"
 
+  changeset-self-test:
+    name: Changeset Self Test (${{ matrix.label }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: shipped path, no changeset
+            changeset: false
+            expect: failure
+          - label: shipped path, changeset added
+            changeset: true
+            expect: success
+
+    steps:
+      # The action diffs the workspace's own repository, so the fixture has to BE
+      # the workspace root.
+      - uses: actions/checkout@v7.0.1
+        with:
+          path: .action
+          persist-credentials: false
+
+      - name: Write the fixture
+        env:
+          CHANGESET: ${{ matrix.changeset }}
+        run: |
+          set -euo pipefail
+          printf '{"pull_request":{"labels":[]}}' > event.json
+          git init -q -b main
+          git config user.name fixture
+          git config user.email fixture@example.com
+          git config commit.gpgsign false
+          echo fixture > README.md
+          git add README.md
+          git commit -q -m base
+          git update-ref refs/remotes/origin/main HEAD
+          git switch -q -c feature
+          mkdir src
+          echo shipped > src/a.js
+          git add src
+          if [ "$CHANGESET" = true ]; then
+            mkdir .changeset
+            echo changed > .changeset/fixture.md
+            git add .changeset
+          fi
+          git commit -q -m change
+
+      # The runner overwrites the GITHUB_* event variables before every script
+      # step, so they are set on the node process itself.
+      - id: check
+        continue-on-error: true
+        run: |
+          GITHUB_EVENT_NAME=pull_request \
+          GITHUB_EVENT_PATH="$PWD/event.json" \
+          GITHUB_BASE_REF=main \
+          INPUT_PATHS=src/ \
+          INPUT_LABEL=skip-changeset \
+          node .action/changeset/main.mjs
+
+      # Runs action.yml as a caller does, so only where the real event matches the fixture.
+      - id: action
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && !contains(github.event.pull_request.labels.*.name, 'skip-changeset')
+        uses: $/changeset
+        continue-on-error: true
+
+      - name: The action reached the verdict the fixture calls for
+        env:
+          EXPECT: ${{ matrix.expect }}
+          OUTCOMES: ${{ steps.check.outcome }} ${{ steps.action.outcome }}
+        run: |
+          set -eu
+          fail=0
+          for got in $OUTCOMES; do
+            [ "$got" = skipped ] && continue
+            [ "$got" = "$EXPECT" ] || {
+              echo "::error::expected the action to end in $EXPECT, got $got"
+              fail=1
+            }
+          done
+          exit "$fail"
+
   setup-integration-legs:
     name: Setup Integration Test (${{ matrix.label }})
     runs-on: ubuntu-latest

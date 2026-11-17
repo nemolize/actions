@@ -255,3 +255,78 @@ them in one `concurrency` group.
 
 - `pull-requests: write` for a pull request, `issues: write` for an issue.
 - No `actions/checkout` — the action reads and writes over the API.
+
+## `changeset`
+
+Fails a pull request that changes shipped paths without adding a changeset. A
+change to shipped code with none never reaches npm, because the release workflow
+only opens a version pull request for a pending changeset.
+
+```yaml
+name: Changeset
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changeset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@<sha> # the release that <sha> belongs to
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: nemolize/actions/changeset@<sha> # the release that <sha> belongs to
+        with:
+          paths: |
+            src/
+```
+
+The caller keeps its own workflow because the `pull_request` types are set
+there: with `labeled` and `unlabeled` in them, changing the label re-runs this
+check alone, not a build matrix that shares a workflow with it.
+
+### Inputs
+
+| Input | Default | Description |
+| --- | --- | --- |
+| `paths` | `src/` | Newline-separated path prefixes whose changes ship. A directory ends in `/` |
+| `label` | `skip-changeset` | Pull request label that skips the check. Blank disables the skip |
+
+### Behaviour
+
+**A path ships when it starts with an entry of `paths`.** Entries are literal
+prefixes of the repository-relative path, so `src/` matches `src/a.js` and not
+`docs/src/a.js`, and nothing is a glob. Blank lines are ignored; an input with no
+entry left is an error, not a check of nothing, and so is an entry starting with
+`./` or `/`, which no path can match.
+
+**A changeset is a file added directly in `.changeset/`, ending in `.md`.**
+`.changeset/README.md`, which `changeset init` writes, does not count, and a
+changeset that was only edited does not either. A file moved to a new name counts
+as added.
+
+**The label passes the check without reading the diff.** It is matched without
+regard to case. The job runs and ends
+green with a notice; it is not skipped, because a caller can only skip a job by
+repeating the label's name in its own `if:`. The label is read from the event, so
+re-running an old run uses the labels it started with.
+
+**Any other event passes with a notice**, since there is no base to diff against.
+
+**A diff that cannot be read fails**, naming `fetch-depth: 0`. A shallow clone has
+no merge base, and passing on one would let every change through.
+
+The check does not block a merge unless it is made a required status check in the
+repository's settings.
+
+### Requirements
+
+- `actions/checkout` with `fetch-depth: 0` before this action.
+- `contents: read`.
+- `node` on `PATH`, which GitHub-hosted runners provide.
