@@ -246,7 +246,7 @@ jobs:
           printf '[tools]\nnode = "lts"\npnpm = "latest"\n' > mise.toml
           printf '{\n  "name": "fixture",\n  "version": "0.0.0",\n  "private": true,\n  "dependencies": { "is-odd": "3.0.1" }\n}\n' > package.json
 
-      - uses: jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@v5.2.9
         with:
           # Matches the pin in setup/action.yml so the fixture's lockfile is
           # written by the same mise the action under test then runs.
