@@ -15,7 +15,7 @@ runs:
         digest=$("$GITHUB_ACTION_PATH/mise-overrides.sh")
         echo "segment=${digest:+-$digest}" >> "$GITHUB_OUTPUT"
 
-    - uses: jdx/mise-action@v5.2.8
+    - uses: jdx/mise-action@v5.2.9
       with:
         # CalVer, ~20 releases a month, no compatibility promise across them: an
         # unpinned mise reaches every consumer the day it regresses.
